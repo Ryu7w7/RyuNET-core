@@ -1,0 +1,30 @@
+doctype html
+html
+  head
+    meta(charset="utf-8")
+    meta(http-equiv="X-UA-Compatible", content="ie=edge")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0")
+    title RyuNET - Finding Your Card Number
+    link(rel="stylesheet", href="/static/css/bulma.min.css")
+    link(rel="stylesheet", href="/static/css/margin.min.css")
+    link(rel="stylesheet", href="/static/css/materialdesignicons.min.css")
+    link(rel="stylesheet", href="/static/css/style.css")
+    link(rel="stylesheet", href="/static/css/bulma-fix.css")
+    link(rel="stylesheet", href="/static/css/modern.css")
+  body.auth-body
+    .auth-container(style="max-width: 640px;")
+      .card.auth-card
+        .card-content
+          .has-text-centered.mb-5
+            .image.is-64x64.logo.auth-logo
+              img(src="/static/img/logo.png")
+            h1.title.is-4.auth-title Finding Your Card Number
+          .content
+            p You can sign up using either your #[strong NFC ID] or your #[strong Card Number]. Both formats are accepted, with or without spaces and dashes.
+            h5 Option 1: NFC ID
+            p Your NFC ID is a 16-character hex string (e.g. #[code E00485A4821B66D4]). You can find it in the #[strong card0.txt] file located in your spice installation folder. You have most likely generated it in spicecfg under the Cards section.
+            h5 Option 2: Card Number
+            p Your Card Number is the alphanumeric code printed on your virtual card (e.g. #[code 3J6T 7PDG GUY7 981P]). You can find it in-game after scanning your card, or on the Asphyxia profile page if your card has already been registered.
+          hr
+          .has-text-centered
+            a(href="/signup") Back to Sign Up

@@ -1,0 +1,60 @@
+extends _layout.pug
+include _delete.pug
+
+block content
+  section.section.is-main-section
+    - var dateformat = { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' };
+
+    .card.has-table
+      header.card-header
+        p.card-header-title
+          span.icon
+            i.mdi.mdi-account-multiple
+          | Players
+      .card-content
+        if profiles.length > 0
+          .table-container
+            table.table.is-fullwidth.is-striped.is-hoverable
+              thead
+                tr
+                  th
+                  th Name
+                  th.is-hidden-mobile ID
+                  th Cards
+                  th
+              tbody
+                each profile, index in profiles
+                  tr
+                    td.is-image-cell
+                      .image.is-32x32(jdenticon=profile.name jdenticon-size='32')
+                    td.has-padding-top-7 #{profile.name}
+                    td.is-hidden-mobile.has-padding-top-7 #{profile.__refid}
+                    td.has-padding-top-7 #{profile.cards}
+                    td.has-padding-right-5
+                      .buttons.is-right.are-small
+                        if isAdmin || profile.isOwner
+                          a.button.is-primary(href=`/profile/${profile.__refid}` data-tooltip="Edit Profile")
+                            span.icon
+                              i.mdi.mdi-account-edit.mdi-18px
+                        if isAdmin && profile.accountUsername
+                          a.button.is-info(href=`/admin/account/${profile.accountUsername}` data-tooltip="Edit Credentials")
+                            span.icon
+                              i.mdi.mdi-key.mdi-18px
+                        if isAdmin
+                          a.button.is-danger.jb-modal.data-delete-button(data-target="confirm-modal" deleting=profile.__refid deleting-name=profile.name data-tooltip="Delete")
+                            span.icon
+                              i.mdi.mdi-trash-can.mdi-18px
+        else
+          section.section
+            .content.has-text-grey.has-text-centered
+              p
+                span.icon.is-large
+                  i.mdi.mdi-emoticon-happy.mdi-48px
+              p Nothing's here yet. Let's play!
+
+block modal
+  +confirm("Deleting profile", "/profile/")
+    p
+      b Are you sure?
+    p Deleting the profile will delete all game data associated with this profile (including scores).
+    p You will not be able to undo this action.

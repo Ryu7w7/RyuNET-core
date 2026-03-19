@@ -1,0 +1,167 @@
+doctype html
+mixin li_menu_item(icon, label, link)
+  li
+    a.has-icon(class=((title == label && plugin == 'core') ? 'is-active' : '') href=link)
+      span.icon
+        i.mdi(class='mdi-'+icon)
+      span.menu-item-label #{label}
+
+mixin li_plugin(icon, label, link, pages)
+  li(class=(plugin == link) ? 'is-active' : '')
+    a.has-icon.has-dropdown-icon(class=(plugin == link) ? 'is-active' : '' href='/plugin/' + link)
+      span.icon
+        i.mdi(class='mdi-'+icon)
+      span.menu-item-label.expandable #{label}
+      .dropdown-icon
+        span.icon.plus
+          i.mdi.mdi-plus
+        span.icon.minus
+          i.mdi.mdi-minus
+    ul
+      li
+        a(href=`/plugin/${link}` class=(((plugin == link) && (subidentifier == 'overview')) ? 'is-active' : ''))
+          span Overview
+        if admin
+          a(href=`/plugin/${link}/profiles` class=(((plugin == link) && (subidentifier == 'profiles')) ? 'is-active' : ''))
+            span Profiles
+        else
+          a(href=`/plugin/${link}/my-profile` class=(((plugin == link) && (subidentifier == 'profiles')) ? 'is-active' : ''))
+            span Profile
+        each page in pages
+          a(href=`/plugin/${link}/${page.link}` class=(((plugin == link) && (subidentifier == page.link)) ? 'is-active' : ''))
+            span #{page.name}
+html.has-aside-left.has-aside-mobile-transition.has-navbar-fixed-top.has-aside-expanded(class=aside ? 'has-aside-mobile-expanded' : '')
+  head
+    meta(charset="utf-8")
+    meta(http-equiv="X-UA-Compatible", content="ie=edge")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0")
+    title RyuNET - #{title}
+      if subtitle
+        |
+        | &gt; #{subtitle}
+    link(rel="stylesheet", href="/static/css/bulma.min.css")
+    link(rel="stylesheet", href="/static/css/margin.min.css")
+    link(rel="stylesheet", href="/static/css/materialdesignicons.min.css")
+    link(rel="stylesheet", href="/static/css/tooltip.min.css")
+    link(rel="stylesheet", href="/static/css/style.css")
+    link(rel="stylesheet", href="/static/css/simplebar.min.css")
+    script(type="text/javascript" src="/static/js/axios.min.js")
+    script(type="text/javascript" src="/static/js/jquery-3.5.1.min.js")
+    script(type="text/javascript" src="/static/js/jdenticon-2.2.0.min.js")
+    script(type="text/javascript" src="/static/js/geopattern.min.js")
+    script(type="text/javascript" src="/static/js/js.cookie-2.2.1.min.js")
+    script(type="text/javascript" src="/static/js/simplebar.min.js")
+    script(type="text/javascript" src="/static/js/exposed.js")
+    block head
+    link(rel="stylesheet", href="/static/css/bulma-fix.css")
+    link(rel="stylesheet", href="/static/css/modern.css")
+    noscript
+      style
+        .
+          .simplebar-content-wrapper {
+            overflow: auto;
+          }
+  body
+    #app
+      nav.navbar.is-fixed-top.is-info.is-mobile#navbar-main
+        .navbar-brand
+          a.navbar-item.is-hidden-desktop.jb-aside-mobile-toggle
+            span.icon
+              i.mdi.mdi-24px
+          .navbar-item
+            .image.is-24x24.logo
+              img(src="/static/img/logo.png")
+            span RyuNET
+        .navbar-brand.is-right
+          a.navbar-item.is-hidden-desktop.jb-navbar-menu-toggle(data-target="navbar-menu")
+            span.icon
+              i.mdi.mdi-dots-vertical
+        .navbar-menu#navbar-menu
+          .navbar-end
+            .navbar-item.has-dropdown.has-dropdown-with-icons.has-divider.is-hoverable
+              a.navbar-link.is-arrowless
+                span.icon
+                  i.mdi.mdi-account-circle
+                span #{user}
+                span.icon
+                  i.mdi.mdi-chevron-down
+              .navbar-dropdown.is-right
+                a.navbar-item(href="/account")
+                  span.icon
+                    i.mdi.mdi-account-cog
+                  span Account Settings
+                hr.navbar-divider
+                a.navbar-item(href="/logout")
+                  span.icon
+                    i.mdi.mdi-logout
+                  span Logout
+      aside.aside.is-placed-left.is-expanded(data-simplebar)
+        .aside-tools
+          .aside-tools-label
+            span Home
+        .menu.is-menu-main
+          p.menu-label Panel
+          ul.menu-list
+            if admin
+              +li_menu_item("desktop-mac", "Dashboard", "/")
+            
+            +li_menu_item("help-circle", "About", "/about")
+            
+            if admin
+              +li_menu_item("account-circle", "Profiles", "/profiles")
+            else
+              +li_menu_item("account-circle", "Profile", "/my-profile")
+            
+            +li_menu_item("trophy", "Leaderboard", "/leaderboard?game=sdvx")
+            
+            if admin
+              +li_menu_item("database", "Data Management", "/data")
+            
+            +li_menu_item("account-cog", "Account", "/account")
+            
+            if admin
+              +li_menu_item("account-group", "Users", "/users")
+          p.menu-label Games
+          ul.menu-list
+            each plugin in plugins
+              -
+                var link = plugin.id;
+                var label = plugin.name.toUpperCase();
+                var char = link[0].toLowerCase();
+                var isAlpha = /[a-zA-Z]/.test(char);
+                var isNumeric = /[0-9]/.test(char);
+                var icon = isAlpha ? `alpha-${char}-circle` : (isNumeric ? `numeric-${char}-circle` : 'record-circle');
+              +li_plugin(icon, label, link, plugin.pages)
+      .content#main-content(data-simplebar)
+        section.hero.is-hero-bar
+          .hero-body
+            p.title #{title}
+              if subtitle
+                span.subtitle
+                  |
+                  span.is-size-6.has-text-grey-light &gt;
+                  |
+                  span.has-text-grey #{subtitle}
+              if subsubtitle
+                span.subtitle
+                  |
+                  span.is-size-6.has-text-grey-light &gt;
+                  |
+                  span.has-text-grey #{subsubtitle}
+
+        block content
+
+      footer.footer
+        .content.has-text-centered
+          p
+            | Made with
+            span.icon.has-text-danger
+              i.mdi.mdi-heart
+            | by Team Asphyxia | Modified by Beafowl & Ryu7w7| Plugins by
+            |
+            a(href="/about") Community
+
+      block modal
+
+      script(type="text/javascript" src="/static/js/main.js")
+      block scripts

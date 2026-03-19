@@ -1,0 +1,18 @@
+mixin confirm(title, url)
+  .modal#confirm-modal
+    .modal-background.jb-modal-close
+    .modal-card
+      header.modal-card-head
+        span.icon.has-text-danger
+          i.mdi.mdi-alert.mdi-18px
+        p.modal-card-title.has-text-weight-semibold #{title} 
+          span#confirm-modal-title
+      section.modal-card-body
+        block
+      footer.modal-card-foot
+        button.button.is-primary.jb-modal-close Cancel
+        button.button.is-danger.is-outlined.is-pulled-right#confirm-delete(data-url=url)
+          span.is-overlay.is-centered Delete
+          span.is-overlay.is-centered Click again to confirm
+    button.modal-close.is-large.jb-modal-close
+  script(type="text/javascript" src="/static/js/delete.js")

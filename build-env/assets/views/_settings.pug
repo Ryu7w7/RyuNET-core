@@ -1,0 +1,131 @@
+mixin form_control(option)
+  .field.is-horizontal
+    .field-label(class=(option.type != 'boolean') ? "is-normal" : "")
+      label.label(for=option.key) #{option.name}
+    .field-body
+      .field
+        if option.type == 'float'
+          .control.is-expanded(class=option.error ? 'has-icons-right' : '')
+            if option.range
+              input.input(title='' type='number' name=option.key min=option.range[0] max=option.range[1] value=option.current class=option.error ? 'is-danger' : '')
+            else
+              input.input(title='' type='number' name=option.key value=option.current class=option.error ? 'is-danger' : '')
+            if option.error
+              span.icon.is-small.is-right.has-text-danger
+                i.mdi.mdi-alert
+        if option.type == 'integer'
+          .control.is-expanded(class=option.error ? 'has-icons-right' : '' data-tooltip=option.error)
+            if option.range
+              input.input(title='' type='number' name=option.key step=1 min=option.range[0] max=option.range[1] value=option.current class=option.error ? 'is-danger' : '')
+            else
+              input.input(title='' type='number' name=option.key step=1 value=option.current class=option.error ? 'is-danger' : '')
+            if option.error
+              span.icon.is-small.is-right.has-text-danger
+                i.mdi.mdi-alert
+        if option.type == 'string'
+          .control.is-expanded(class=option.error ? 'has-icons-right' : '' data-tooltip=option.error)
+            if option.options
+              .select 
+                select(type='text' name=option.key)
+                  each choice in option.options
+                    if choice == option.current
+                      option(selected) #{choice}
+                    else
+                      option() #{choice}
+            else
+              input.input(type='text' name=option.key value=option.current class=option.error ? 'is-danger' : '')
+              if option.error
+                span.icon.is-small.is-right.has-text-danger
+                  i.mdi.mdi-alert
+        if option.type == 'boolean'
+          .control
+            label.switch.is-rounded
+              input(type='checkbox' name=option.key checked=option.current)
+              span.check
+        if option.desc
+          p.help #{option.desc}
+
+mixin form(name, options)
+  .card
+    header.card-header
+      p.card-header-title
+        span.icon
+          i.mdi.mdi-cog
+        | #{name}
+    .card-content
+      form(method='post')
+        input(type="hidden" name="__is_plugin" value="yes")
+        each option in options
+          +form_control(option)
+        .field.is-grouped
+          .control.is-expanded
+            if formMessage
+              if formMessage.danger
+                .notification.is-danger.is-light #{formMessage.message}
+              else
+                .notification.is-success.is-light #{formMessage.message}
+          .control
+            button.button.is-link(type='submit') Apply
+
+mixin file_control(option)
+  .field.is-horizontal.no-bottom
+    .field-label(class=(option.type != 'boolean') ? "is-normal" : "")
+      label.label(for=option.key) #{option.name}
+    .field-body
+      .field.is-grouped
+        .control
+          if option.uploaded
+            .file.is-primary.has-name
+              label.file-label
+                input.data-upload.file-input(type='file' name=option.path accept=option.accept)
+                span.file-cta
+                  span.file-icon
+                    i.mdi.mdi-check
+                  span.file-label Uploaded
+                span.file-name
+                  span.icon
+                    i.mdi.mdi-upload
+          else if option.required
+            .file.is-warning.has-name
+              label.file-label
+                input.data-upload.file-input(type='file' name=option.path accept=option.accept)
+                span.file-cta
+                  span.file-icon
+                    i.mdi.mdi-alert
+                  span.file-label Required
+                span.file-name
+                  span.icon
+                    i.mdi.mdi-upload
+          else
+            .file.is-link.has-name
+              label.file-label
+                input.data-upload.file-input(type='file' name=option.path accept=option.accept)
+                span.file-cta
+                  span.file-icon
+                    i.mdi.mdi-file
+                  span.file-label Upload
+                span.file-name
+                  span.icon
+                    i.mdi.mdi-upload
+        if option.uploaded
+          .control
+            button.data-delete.button.is-danger(deleting=option.path)
+              span.icon
+                i.mdi.mdi-trash-can
+              span Clear
+  .field.is-horizontal
+    .field-label
+    .field-body
+      if option.desc
+        p.help #{option.desc}
+
+mixin files(name, options)
+  .card
+    header.card-header
+      p.card-header-title
+        span.icon
+          i.mdi.mdi-file
+        | #{name}
+    .card-content
+      each option in options
+        +file_control(option)

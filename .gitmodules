@@ -1,0 +1,6 @@
+[submodule "docs"]
+	path = docs
+	url = https://github.com/asphyxia-core/asphyxia-core.github.io
+[submodule "plugins/_example@identifier"]
+	path = plugins/_example@identifier
+	url = https://github.com/asphyxia-core/plugin-template

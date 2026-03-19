@@ -1,0 +1,87 @@
+extends _layout.pug
+include _delete.pug
+
+block content
+  section.section.is-main-section
+    if profiles.length > 0
+      .columns.is-multiline
+        each profile in profiles
+          .column.is-half
+            if profile.coreProfile
+              .card
+                header.card-header
+                  p.card-header-title
+                    span.icon
+                      i.mdi.mdi-file
+                    | #{profile.coreProfile.name}
+                .card-content
+                  .level
+                    .level-item.has-text-centered
+                      .image.is-64x64(jdenticon=profile.coreProfile.name jdenticon-size=64)
+                    .level-item.has-text-centered
+                      div
+                        p.heading ID
+                        p
+                          span.tag.is-info #{profile.refid}
+                  .level
+                    if profile.name
+                      .level-item.has-text-centered
+                        div
+                          p.heading Name
+                          p.subtitle #{profile.name}
+                    .level-item.has-text-centered
+                      div
+                        p.heading Data Usage
+                        p.subtitle #{profile.dataSize}
+                  .buttons.is-right
+                    if hasCustomPage
+                      a.button.is-primary(href=`/plugin/${plugin}/profile?refid=${profile.refid}`)
+                        span.icon.is-small
+                          i.mdi.mdi-account-edit
+                        span Detail
+                    if isAdmin || profile.isOwner
+                      button.button.is-danger.is-outlined.jb-modal.data-delete-button(data-target="confirm-modal" deleting=profile.refid deleting-name=profile.coreProfile.name)
+                        span.icon.is-small
+                          i.mdi.mdi-trash-can
+                        span Delete
+            else
+              .card
+                header.card-header
+                  p.card-header-title
+                    span.icon
+                      i.mdi.mdi-alert
+                    | &lt;Invalid Profile&gt;
+                .card-content
+                  .level
+                    .level-item.has-text-centered
+                      span.icon.is-large.has-text-warning
+                        i.mdi.mdi-alert.mdi-48px
+                    .level-item.has-text-centered
+                      div
+                        p.heading ID
+                        p
+                          span.tag.is-info #{profile.refid}
+                  .level
+                    .level-item.has-text-centered
+                      div
+                        p.heading Data Usage
+                        p.subtitle #{profile.dataSize}
+                  .buttons.is-right
+                    if isAdmin
+                      button.button.is-danger.is-outlined.jb-modal.data-delete-button(data-target="confirm-modal" deleting=profile.refid deleting-name="<Invalid Profile>")
+                        span.icon.is-small
+                          i.mdi.mdi-trash-can
+                        span Delete
+    else
+      section.section
+        .content.has-text-grey.has-text-centered
+          p
+            span.icon.is-large
+              i.mdi.mdi-emoticon-happy.mdi-48px
+          p Nothing's here yet. Let's play!
+
+block modal
+  +confirm("Deleting game data of", "profile/")
+    p
+      b Are you sure?
+    p You will not be able to undo this action.

@@ -1,0 +1,82 @@
+extends _layout.pug
+include _settings.pug
+
+block content
+  section.section.is-main-section
+    .columns
+      .column
+        .card
+          .card-content
+            .level.is-mobile
+              .level-item
+                .is-widget-label
+                  p.subtitle Profile Slots
+                  p.title #{profiles}
+              .level-item
+                span.icon.is-large.has-text-primary
+                  i.mdi.mdi-48px.mdi-account-multiple
+      .column
+        .card
+          .card-content
+            .level.is-mobile
+              .level-item
+                .is-widget-label
+                  p.subtitle Plugins
+                  p.title #{plugins.length}
+              .level-item
+                span.icon.is-large.has-text-info
+                  i.mdi.mdi-48px.mdi-view-module
+      .column
+        .card
+          .card-content
+            .level.is-mobile
+              .level-item
+                .is-widget-label
+                  p.subtitle RAM Usage
+                  p.title #{memory}
+              .level-item
+                span.icon.is-large.has-text-danger
+                  i.mdi.mdi-48px.mdi-memory
+
+    .columns
+      .column
+        .card
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-information-outline
+              | Information
+          .card-content
+            p Homepage:
+              a(href="https://asphyxia-core.github.io") https://asphyxia-core.github.io
+            p
+              div Latest Community Plugins:
+              a(href="https://github.com/asphyxia-core/plugins") https://github.com/asphyxia-core/plugins
+            p
+              | Asphyxia CORE is a
+              b.has-text-danger FREE
+              |
+              | software made by and for the community. If you bought this software, you have been scammed.
+
+        .card
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-format-list-bulleted
+              | Changelog
+          .card-content !{changelog}
+      if admin
+        .column
+          .card.mb-4
+            header.card-header
+              p.card-header-title
+                span.icon
+                  i.mdi.mdi-content-save
+                | Backup
+            .card-content
+              p.mb-3 Create a backup of the savedata folder.
+              button.button.is-primary#backup-savedata
+                span.icon
+                  i.mdi.mdi-database-export
+                span Backup Savedata
+          +form('CORE Settings', config, 'core')

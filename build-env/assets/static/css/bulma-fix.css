@@ -1,0 +1,88 @@
+@media (prefers-color-scheme: dark) {
+  .content table td,
+  .content table th {
+    border: solid #363636;
+    border-top-color: rgb(54, 54, 54);
+    border-top-style: solid;
+    border-top-width: 0px;
+    border-right-color: rgb(54, 54, 54);
+    border-right-style: solid;
+    border-right-width: 0px;
+    border-bottom-color: rgb(54, 54, 54);
+    border-bottom-style: solid;
+    border-bottom-width: 1px;
+    border-left-color: rgb(54, 54, 54);
+    border-left-style: solid;
+    border-left-width: 0px;
+    border-image-source: initial;
+    border-image-slice: initial;
+    border-image-width: initial;
+    border-image-outset: initial;
+    border-image-repeat: initial;
+    border-width: 0 0 1px;
+    border-top-width: 0px;
+    border-right-width: 0px;
+    border-bottom-width: 1px;
+    border-left-width: 0px;
+    padding: 0.5em 0.75em;
+    vertical-align: top;
+  }
+
+  .input,
+  .select select,
+  .textarea {
+    background-color: #000;
+    border-color: #363636;
+    border-radius: 4px;
+    color: #dbdbdb;
+  }
+
+  a.tag.is-dark:hover {
+    background-color: #363636;
+  }
+
+  span.tag.is-dark,
+  a.tag.is-dark {
+    background-color: #505050;
+  }
+
+  .switch input[type='checkbox'] + .check {
+    background: #363636;
+  }
+  .switch input[type='checkbox'] + .check:hover {
+    background: #454545;
+  }
+
+  section.hero.is-hero-bar {
+    background-color: #363636;
+  }
+
+  .modal-card-body {
+    background-color: #111;
+  }
+
+  .modal-background {
+    background-color: rgba(10, 10, 10, 0.85);
+  }
+
+  .navbar-dropdown {
+    background-color: #0a0a0a;
+    border-top: 2px solid #363636;
+    box-shadow: 0 8px 8px rgba(255, 255, 255, 0.1);
+  }
+
+  a.navbar-item:focus {
+    background-color: red;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .menu-list a.is-active {
+    background-color: #282c33;
+  }
+}
+@media screen and (max-width: 1023px) and (prefers-color-scheme: dark) {
+  nav.navbar .navbar-menu .navbar-item.has-dropdown > .navbar-link {
+    background-color: #343434;
+  }
+}

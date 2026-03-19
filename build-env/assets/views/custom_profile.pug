@@ -1,0 +1,21 @@
+extends _layout.pug
+
+block content
+  section.section.is-main-section
+    if tabs.length > 1
+      .tabs.is-toggle.is-paddingless
+        ul.is-marginless
+          each tab in tabs
+            if (subsubidentifier == tab.link)
+              li.is-active
+                a(href=`/plugin/${plugin}/profile?refid=${refid}&page=${tab.link}`) #{tab.name}
+            else
+              li
+                a(href=`/plugin/${plugin}/profile?refid=${refid}&page=${tab.link}`) #{tab.name}
+    | !{content}
+
+block scripts
+  script var refid = "#{refid}";
+  script var isAdmin = !{isAdmin ? 'true' : 'false'};
+  script var isOwner = !{isOwner ? 'true' : 'false'};
+  script var canEdit = isAdmin || isOwner;

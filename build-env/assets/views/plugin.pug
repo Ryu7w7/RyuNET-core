@@ -1,0 +1,52 @@
+extends _layout.pug
+include _settings.pug
+
+block content
+  section.section.is-main-section
+    .columns
+      .column
+        if contributors && contributors.length > 0
+          .card
+            header.card-header
+              p.card-header-title
+                span.icon
+                  i.mdi.mdi-dev-to
+                | Contributors
+            .card-content
+              span.field.is-grouped.is-grouped-multiline
+                each contributor in contributors
+                  .control
+                    if contributor.link
+                      span.tags.has-addons
+                        span.tag.is-info #{contributor.name}
+                        a.tag.is-dark(href=contributor.link)
+                          span.icon.is-small
+                            i.mdi.mdi-link-variant
+                    else
+                      span.tags.has-addons
+                        span.tag.is-info #{contributor.name}
+        if readme
+          .card
+            header.card-header
+              p.card-header-title
+                span.icon
+                  i.mdi.mdi-information-outline
+                | Information
+            .card-content !{readme}
+      .column
+        if gameCodes && gameCodes.length > 0
+          .card
+            header.card-header
+              p.card-header-title
+                span.icon
+                  i.mdi.mdi-gamepad-variant-outline
+                | Game Support
+            .card-content
+              span.tags
+                each code in gameCodes
+                  span.tag.is-primary #{code}
+        if datafile.length
+          +files("Data Upload", datafile)
+        if admin
+          if config.length
+            +form("Plugin Settings", config)

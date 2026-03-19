@@ -1,0 +1,18 @@
+extends _layout.pug
+
+block content
+  section.section.is-main-section
+    section.hero.is-dark(geopattern)
+      .hero-body
+        .columns
+          .column.is-narrow
+            .image.is-128x128(style="background-color: #ffffffaa" jdenticon jdenticon-size=128)
+          .column
+            h1.title Something went wrong
+            p.subtitle Let me distract you with this random pattern.
+            p.has-text-right.is-size-7 So you don't see the error message
+        
+    section.section
+      .container.has-text-grey
+        p #{err}
+        p.is-size-7 It's just something wrong with the frontend. Probably not a big deal anyway.
