@@ -109,6 +109,7 @@ block content
                       strong(style="display: inline-block; width: 44px; text-align: left; margin-left: 6px; font-size: 1.15rem;") ##{rank}
 
                   td(style="vertical-align: middle; padding: 1rem 1.5rem; text-align: left;")
+                    span.fi(class="fi-" + (r.countryCode || 'xx') style="margin-right: 8px; font-size: 1.15rem; border-radius: 2px;")
                     strong(style="color: var(--info); font-size: 1.15rem; letter-spacing: 0.5px;") #{r.name}
 
                   if game == 'sdvx'

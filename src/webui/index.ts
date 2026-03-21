@@ -121,6 +121,40 @@ webui.post(
       return res.redirect('/login');
     }
 
+    // Auto-update country if missing
+    if (!user.countryCode || user.countryCode === 'xx') {
+      try {
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        if (ip) {
+          const http = require('http');
+          const ipStr = typeof ip === 'string' ? ip.split(',')[0].trim() : ip[0];
+          if (ipStr && ipStr !== '127.0.0.1' && ipStr !== '::1') {
+            const newCountry = await new Promise<string | null>((resolve) => {
+              const apiReq = http.get(`http://ip-api.com/json/${ipStr}?fields=countryCode`, (apiRes: any) => {
+                let data = '';
+                apiRes.on('data', (c: string) => data += c);
+                apiRes.on('end', () => {
+                  try {
+                    const parsed = JSON.parse(data);
+                    resolve(parsed.countryCode || null);
+                  } catch {
+                    resolve(null);
+                  }
+                });
+              }).on('error', () => resolve(null));
+              apiReq.setTimeout(2000, () => { apiReq.destroy(); resolve(null); });
+            });
+            if (newCountry) {
+              await UpdateUserAccount(user.username, { countryCode: newCountry });
+              user.countryCode = newCountry;
+            }
+          }
+        }
+      } catch {
+        // ignore errors
+      }
+    }
+
     req.session.user = {
       username: user.username,
       cardNumber: user.cardNumber,
@@ -204,7 +238,36 @@ webui.post(
       }
     }
 
-    const account = await CreateUserAccount(username, password, nfcId);
+    let countryCode = null;
+    try {
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      if (ip) {
+        const http = require('http');
+        const ipStr = typeof ip === 'string' ? ip.split(',')[0].trim() : ip[0];
+        // don't try to lookup local IPs on the API
+        if (ipStr && ipStr !== '127.0.0.1' && ipStr !== '::1') {
+          countryCode = await new Promise<string | null>((resolve) => {
+            const apiReq = http.get(`http://ip-api.com/json/${ipStr}?fields=countryCode`, (apiRes: any) => {
+              let data = '';
+              apiRes.on('data', (c: string) => data += c);
+              apiRes.on('end', () => {
+                try {
+                  const parsed = JSON.parse(data);
+                  resolve(parsed.countryCode || null);
+                } catch {
+                  resolve(null);
+                }
+              });
+            }).on('error', () => resolve(null));
+            apiReq.setTimeout(2000, () => { apiReq.destroy(); resolve(null); });
+          });
+        }
+      }
+    } catch {
+      // ignore errors
+    }
+
+    const account = await CreateUserAccount(username, password, nfcId, false, countryCode);
     if (!account) {
       return res.render('signup', { error: 'Username already exists.', old });
     }
@@ -327,14 +390,14 @@ webui.post(
     const targetUser = await FindUserByUsername(req.params.username);
     if (!targetUser) return res.redirect('/profiles');
     
-    const { username, password } = req.body;
+    const { username, password, countryCode } = req.body;
     
     if (password && password.length < 4) {
       req.flash('formWarn', 'Password must be at least 4 characters.');
       return res.redirect(`/admin/account/${req.params.username}`);
     }
 
-    const updateFields: { username?: string; password?: string } = {};
+    const updateFields: { username?: string; password?: string; countryCode?: string | null } = {};
 
     if (username && username !== targetUser.username) {
       if (username.length < 3) {
@@ -351,6 +414,13 @@ webui.post(
 
     if (password) {
       updateFields.password = password;
+    }
+
+    if (Object.keys(req.body).includes('countryCode')) {
+      const parsedCountry = countryCode ? String(countryCode).toUpperCase().trim() : null;
+      if (parsedCountry !== targetUser.countryCode) {
+        updateFields.countryCode = parsedCountry || null;
+      }
     }
 
     if (Object.keys(updateFields).length > 0) {
@@ -1593,11 +1663,21 @@ webui.get(
     const isOwner = await userOwnsProfile(req, refid);
     if (!isAdmin && !isOwner) return res.redirect('/');
 
+    let countryCode = 'xx';
     profile.cards = await FindCardsByRefid(refid);
+    if (profile.cards && profile.cards.length > 0) {
+      for (const c of profile.cards) {
+        const u = await FindUserByCardNumber(c.cid);
+        if (u && u.countryCode) {
+          countryCode = u.countryCode.toLowerCase();
+          break;
+        }
+      }
+    }
 
     res.render(
       'profiles_profile',
-      data(req, 'Profiles', 'core', { profile, subtitle: profile.name, isAdmin, isOwner })
+      data(req, 'Profiles', 'core', { profile, subtitle: profile.name, isAdmin, isOwner, countryCode })
     );
   })
 );
@@ -2018,6 +2098,7 @@ function classNumToName(n: number) {
     'IMPERIAL',
   ][n - 1] ?? 'SIENNA';
 }
+
 // Leaderboard SDVX + IIDX
 webui.get('/leaderboard', wrap(async (req, res, next) => {
   const game = String(req.query.game || 'sdvx').toLowerCase();
@@ -2059,6 +2140,18 @@ webui.get('/leaderboard', wrap(async (req, res, next) => {
       const SDVX_ASSET_BASE = '/plugin/sdvx@asphyxia/static/asset';
       const classImg = `${SDVX_ASSET_BASE}/force/em6_${String(classNum).padStart(2, '0')}_i_eab.png`;
       
+      let countryCode = 'xx';
+      const cards = await FindCardsByRefid(refid);
+      if (cards && Array.isArray(cards)) {
+        for (const c of cards) {
+          const u = await FindUserByCardNumber(c.cid);
+          if (u && u.countryCode) {
+            countryCode = u.countryCode.toLowerCase();
+            break;
+          }
+        }
+      }
+      
       rows.push({
         refid,
         name,
@@ -2067,6 +2160,7 @@ webui.get('/leaderboard', wrap(async (req, res, next) => {
         classNum,
         className,
         classImg,
+        countryCode,
       });
     }
     rows.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
@@ -2143,11 +2237,25 @@ webui.get('/leaderboard', wrap(async (req, res, next) => {
       const name = nickname
         ? sanitizeNickname(nickname)
         : (coreProfile?.name || '(no name)');
+        
+      let countryCode = 'xx';
+      const cards = await FindCardsByRefid(refid);
+      if (cards && Array.isArray(cards)) {
+        for (const c of cards) {
+          const u = await FindUserByCardNumber(c.cid);
+          if (u && u.countryCode) {
+            countryCode = u.countryCode.toLowerCase();
+            break;
+          }
+        }
+      }
+      
       rows.push({
         refid,
         name,
         value: totalEX,
         extraA: entries,
+        countryCode,
       });
     }
     

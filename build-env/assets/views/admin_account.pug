@@ -23,6 +23,15 @@ block content
                         i.mdi.mdi-account
               .field.is-horizontal
                 .field-label.is-normal
+                  label.label Country Code
+                .field-body
+                  .field
+                    .control.has-icons-left
+                      input.input(type="text" name="countryCode" placeholder="CL, AR, US, etc. (Leave blank for none)" value=targetUser.countryCode || '')
+                      span.icon.is-small.is-left
+                        i.mdi.mdi-earth
+              .field.is-horizontal
+                .field-label.is-normal
                   label.label New Password
                 .field-body
                   .field

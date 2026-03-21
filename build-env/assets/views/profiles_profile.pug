@@ -20,8 +20,9 @@ block content
                     label.label ID
                   .field-body
                     .field
-                      .control
+                      .control.is-flex.is-align-items-center
                         span.tag.is-info#refid #{profile.__refid}
+                        span.fi(class="fi-" + (countryCode || 'xx') style="margin-left: 10px; font-size: 1.25rem; border-radius: 2px;" data-tooltip="Player Country")
                 if isAdmin || isOwner
                   form(method='post')
                     .field.is-horizontal.is-narrow

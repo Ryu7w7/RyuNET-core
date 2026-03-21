@@ -508,7 +508,8 @@ export async function CreateUserAccount(
   username: string,
   password: string,
   cardNumber: string,
-  admin: boolean = false
+  admin: boolean = false,
+  countryCode: string | null = null
 ) {
   try {
     const existing = await CoreDB.findOneAsync<any>({ __s: 'user_account', username });
@@ -521,6 +522,7 @@ export async function CreateUserAccount(
       password: hash,
       cardNumber,
       admin,
+      countryCode,
     });
   } catch (err) {
     Logger.error(err);
@@ -543,12 +545,13 @@ export async function AuthenticateUser(username: string, password: string) {
 
 export async function UpdateUserAccount(
   username: string,
-  update: { username?: string; password?: string }
+  update: { username?: string; password?: string; countryCode?: string | null }
 ) {
   try {
     const setFields: any = {};
     if (update.username) setFields.username = update.username;
     if (update.password) setFields.password = await bcrypt.hash(update.password, 10);
+    if (update.countryCode !== undefined) setFields.countryCode = update.countryCode;
 
     await CoreDB.updateAsync({ __s: 'user_account', username }, { $set: setFields });
     return true;
