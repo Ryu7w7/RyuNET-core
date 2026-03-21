@@ -10,6 +10,8 @@ import {
   CreateCard,
   UpdateProfile,
   APIFindOne,
+  FindUserByCardNumber,
+  UpdateUserAccount,
 } from '../../utils/EamuseIO';
 
 export const cardmng = new EamuseRouteContainer();
@@ -47,6 +49,39 @@ cardmng.add('cardmng.inquire', async (info, data, send) => {
   if (profile.pin === 'unset') {
     // need update pin
     return send.status(112);
+  }
+
+  // Identify Country asynchronously based on IP address
+  if (info.ip && info.ip !== '127.0.0.1' && info.ip !== '::1') {
+    Promise.resolve().then(async () => {
+      try {
+        const http = require('http');
+        const apiReq = http.get(`http://ip-api.com/json/${info.ip}?fields=countryCode`, (apiRes: any) => {
+          let reqData = '';
+          apiRes.on('data', (c: string) => reqData += c);
+          apiRes.on('end', async () => {
+            try {
+              const parsed = JSON.parse(reqData);
+              const countryCode = parsed.countryCode;
+              
+              if (countryCode) {
+                // Determine if we need to update profile
+                if (!profile.countryCode || profile.countryCode.toLowerCase() === 'xx' || profile.countryCode !== countryCode) {
+                  await UpdateProfile(profile.__refid, { countryCode });
+                }
+
+                // Sync with WebUI UserAccount if registered
+                const user = await FindUserByCardNumber(cid);
+                if (user && (!user.countryCode || user.countryCode.toLowerCase() === 'xx' || user.countryCode !== countryCode)) {
+                  await UpdateUserAccount(user.username, { countryCode });
+                }
+              }
+            } catch (ignored) {}
+          });
+        }).on('error', () => {});
+        apiReq.setTimeout(2000, () => { apiReq.destroy(); });
+      } catch (ignored) {}
+    });
   }
 
   send.object({

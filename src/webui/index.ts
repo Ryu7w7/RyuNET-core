@@ -2141,13 +2141,17 @@ webui.get('/leaderboard', wrap(async (req, res, next) => {
       const classImg = `${SDVX_ASSET_BASE}/force/em6_${String(classNum).padStart(2, '0')}_i_eab.png`;
       
       let countryCode = 'xx';
-      const cards = await FindCardsByRefid(refid);
-      if (cards && Array.isArray(cards)) {
-        for (const c of cards) {
-          const u = await FindUserByCardNumber(c.cid);
-          if (u && u.countryCode) {
-            countryCode = u.countryCode.toLowerCase();
-            break;
+      if (coreProfile && coreProfile.countryCode) {
+        countryCode = coreProfile.countryCode.toLowerCase();
+      } else {
+        const cards = await FindCardsByRefid(refid);
+        if (cards && Array.isArray(cards)) {
+          for (const c of cards) {
+            const u = await FindUserByCardNumber(c.cid);
+            if (u && u.countryCode) {
+              countryCode = u.countryCode.toLowerCase();
+              break;
+            }
           }
         }
       }
@@ -2239,13 +2243,17 @@ webui.get('/leaderboard', wrap(async (req, res, next) => {
         : (coreProfile?.name || '(no name)');
         
       let countryCode = 'xx';
-      const cards = await FindCardsByRefid(refid);
-      if (cards && Array.isArray(cards)) {
-        for (const c of cards) {
-          const u = await FindUserByCardNumber(c.cid);
-          if (u && u.countryCode) {
-            countryCode = u.countryCode.toLowerCase();
-            break;
+      if (coreProfile && coreProfile.countryCode) {
+        countryCode = coreProfile.countryCode.toLowerCase();
+      } else {
+        const cards = await FindCardsByRefid(refid);
+        if (cards && Array.isArray(cards)) {
+          for (const c of cards) {
+            const u = await FindUserByCardNumber(c.cid);
+            if (u && u.countryCode) {
+              countryCode = u.countryCode.toLowerCase();
+              break;
+            }
           }
         }
       }

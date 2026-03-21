@@ -35,6 +35,7 @@ export interface EamuseInfo {
   module: string;
   method: string;
   model: string;
+  ip?: string;
 }
 
 export const EamuseMiddleware: RequestHandler = async (req, res, next) => {
@@ -162,11 +163,17 @@ export const EamuseRoute = (router: EamuseRootRouter): RequestHandler => {
 
     const send = new EamuseSend(body, res);
     const data = get(body.data, `call.${body.module}`);
-    const info = { gameCode, module: body.module, method: body.method, model: body.model };
+    const info: EamuseInfo = { 
+      gameCode, 
+      module: body.module, 
+      method: body.method, 
+      model: body.model,
+      ip: req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : (req.ip?.includes(':') ? '127.0.0.1' : req.ip)
+    };
 
     // HACK: give facility ip
     if (body.module == 'facility' && body.method == 'get') {
-      (info as any).ip = req.ip.includes(':') ? '127.0.0.1' : req.ip;
+      (info as any).ip = info.ip;
     }
 
     // HACK: give services host
