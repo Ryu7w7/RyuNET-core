@@ -53,6 +53,8 @@ Log in to the WebUI and change the admin password immediately. If your server is
 ## Changes from upstream
 
 ### Core
+- Country flags
+- Leaderboard for SDVX & IIDX
 - User authentication system (signup, login, account management)
 - Admin role with user management
 - Access control (profile ownership, admin-only pages)
