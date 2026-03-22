@@ -4,27 +4,43 @@ block content
   section.section.is-main-section
     .box
       h2.title.is-4 Global Leaderboard
-      .tabs.is-toggle.is-toggle-rounded.mt-3
-        ul
-          li(class=game=='sdvx' ? 'is-active' : '')
-            a(href="/leaderboard?game=sdvx") SDVX
-          li(class=game=='iidx' ? 'is-active' : '')
-            a(href="/leaderboard?game=iidx&style=sp") IIDX
+      .level.is-mobile.mt-3.mb-3
+        .level-left
+          .level-item
+            .tabs.is-toggle.is-toggle-rounded.m-0
+              ul
+                li(class=game=='sdvx' ? 'is-active' : '')
+                  a(href=`/leaderboard?game=sdvx${searchQuery ? '&search='+encodeURIComponent(searchQuery) : ''}`) SDVX
+                li(class=game=='iidx' ? 'is-active' : '')
+                  a(href=`/leaderboard?game=iidx&style=sp${searchQuery ? '&search='+encodeURIComponent(searchQuery) : ''}`) IIDX
+        .level-right
+          .level-item
+            form(method="GET" action="/leaderboard" style="margin: 0;")
+              input(type="hidden" name="game" value=game)
+              if game == 'iidx'
+                - var s_val = (typeof style === 'string' && style) ? style : 'sp'
+                input(type="hidden" name="style" value=s_val)
+              .field.has-addons.m-0
+                .control
+                  input.input.is-rounded(type="text" placeholder="Search player..." name="search" value=searchQuery || '')
+                .control
+                  button.button.is-info.is-rounded(type="submit")
+                    span.icon: i.mdi.mdi-magnify
       if game == 'iidx'
         - const s = (typeof style === 'string' && style) ? style : 'sp'
         .tabs.is-small.is-toggle.is-toggle-rounded.mt-2
           ul
             li(class=s=='sp' ? 'is-active' : '')
-              a(href="/leaderboard?game=iidx&style=sp") SP
+              a(href=`/leaderboard?game=iidx&style=sp${searchQuery ? '&search='+encodeURIComponent(searchQuery) : ''}`) SP
             li(class=s=='dp' ? 'is-active' : '')
-              a(href="/leaderboard?game=iidx&style=dp") DP
+              a(href=`/leaderboard?game=iidx&style=dp${searchQuery ? '&search='+encodeURIComponent(searchQuery) : ''}`) DP
     if game == 'sdvx'
       .box
         h3.title.is-5 SOUND VOLTEX — VOLFORCE RANKING
         if myRank && myRow
           .notification.is-success
             b Global Ranking:
-            |  ##{myRank} of #{totalPlayers}
+            |  ##{myRank} of #{globalTotalPlayers || totalPlayers}
             br
             | VOLFORCE: #{Number(myRow.value).toFixed(3)}
             |  — Charts: #{myRow.extraA}
@@ -41,7 +57,7 @@ block content
         if myRank && myRow
           .notification.is-success
             b Global Ranking:
-            |  ##{myRank} of #{totalPlayers}
+            |  ##{myRank} of #{globalTotalPlayers || totalPlayers}
             br
             | EX Score: #{myRow.value} — Entries: #{myRow.extraA} — Mode: #{String(style).toUpperCase()}
         else
@@ -56,27 +72,44 @@ block content
         - const pp = perPage || 20
         - const tp = totalPages || 1
         - const s2 = (typeof style === 'string' && style) ? style : 'sp'
-        - const baseQs = (game === 'sdvx') ? 'game=sdvx' : `game=iidx&style=${s2}`
+        - const sqStr = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''
+        - const baseQs = ((game === 'sdvx') ? 'game=sdvx' : `game=iidx&style=${s2}`) + sqStr
+        
+        - const maxPagesToShow = 5;
+        - let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+        - let endPage = Math.min(tp, startPage + maxPagesToShow - 1);
+        - if (endPage - startPage + 1 < maxPagesToShow) { startPage = Math.max(1, endPage - maxPagesToShow + 1); }
+        
         if tp > 1
-          .is-flex.is-justify-content-center.is-align-items-center.mt-4.mb-5(style="gap: 1.5rem; width: 100%; margin: 0 auto;")
+          .is-flex.is-justify-content-center.is-align-items-center.mt-4.mb-5(style="gap: 0.5rem; width: 100%; margin: 0 auto; flex-wrap: wrap;")
             if currentPage > 1
-              a.button.is-info(href=`/leaderboard?${baseQs}&page=${currentPage - 1}` style="width: 140px;")
+              a.button.is-info(href=`/leaderboard?${baseQs}&page=${currentPage - 1}` style="border-radius: 8px;")
                 span.icon: i.mdi.mdi-chevron-left
-                span Previous
             else
-              button.button.is-info(disabled style="opacity: 0; pointer-events: none; cursor: default; width: 140px;")
+              button.button.is-info(disabled style="opacity: 0.5; cursor: default; border-radius: 8px;")
                 span.icon: i.mdi.mdi-chevron-left
-                span Previous
 
-            span.tag.is-medium(style="background: rgba(255,255,255,0.08); color: var(--text); height: 44px; border-radius: 12px; font-weight: 600; font-size: 0.95rem; border: 1px solid rgba(255,255,255,0.05); min-width: 160px; display: inline-flex; justify-content: center; align-items: center;") Page #{currentPage} / #{tp}
+            if startPage > 1
+              a.button(href=`/leaderboard?${baseQs}&page=1` style="border-radius: 8px;") 1
+              if startPage > 2
+                span(style="color: var(--muted); padding: 0 0.5rem;") ...
+                
+            - for (let p = startPage; p <= endPage; p++)
+              if p === currentPage
+                span.button.is-primary(style="border-radius: 8px; font-weight: bold; pointer-events: none;") #{p}
+              else
+                a.button(href=`/leaderboard?${baseQs}&page=${p}` style="border-radius: 8px;") #{p}
+                
+            if endPage < tp
+              if endPage < tp - 1
+                span(style="color: var(--muted); padding: 0 0.5rem;") ...
+              a.button(href=`/leaderboard?${baseQs}&page=${tp}` style="border-radius: 8px;") #{tp}
 
             if currentPage < tp
-              a.button.is-info(href=`/leaderboard?${baseQs}&page=${currentPage + 1}` style="width: 140px;")
-                span Next
+              a.button.is-info(href=`/leaderboard?${baseQs}&page=${currentPage + 1}` style="border-radius: 8px;")
                 span.icon: i.mdi.mdi-chevron-right
             else
-              button.button.is-info(disabled style="opacity: 0; pointer-events: none; cursor: default; width: 140px;")
-                span Next
+              button.button.is-info(disabled style="opacity: 0.5; cursor: default; border-radius: 8px;")
                 span.icon: i.mdi.mdi-chevron-right
 
         .table-container(style="max-height: 65vh; overflow-y: auto; border-radius: var(--radius); border: 1px solid var(--border); background: rgba(0,0,0,0.1);")
@@ -95,7 +128,7 @@ block content
                   th(style="width: 20%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 1.5rem; text-align: left; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") Mode
             tbody
               each r, i in rows
-                - const rank = ((currentPage - 1) * pp) + i + 1
+                - const rank = r.globalRank || (((currentPage - 1) * pp) + i + 1)
                 tr
                   td(style="vertical-align: middle; padding: 1rem 0; text-align: center;")
                     .is-flex.is-justify-content-center.is-align-items-center

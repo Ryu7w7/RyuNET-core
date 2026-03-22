@@ -2168,6 +2168,7 @@ webui.get('/leaderboard', wrap(async (req, res, next) => {
       });
     }
     rows.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    rows.forEach((r, idx) => r.globalRank = idx + 1);
     
     const myRefid = await getLoggedRefid(req);
     let myRank = null;
@@ -2180,17 +2181,27 @@ webui.get('/leaderboard', wrap(async (req, res, next) => {
       }
     }
     
-    const totalPlayers = rows.length;
+    const searchQuery = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+    let filteredRows = rows;
+    if (searchQuery) {
+      const sq = searchQuery.toLowerCase();
+      filteredRows = rows.filter(r => r.name && r.name.toLowerCase().includes(sq));
+    }
+    
+    const globalTotalPlayers = rows.length;
+    const totalPlayers = filteredRows.length;
     const totalPages = Math.max(1, Math.ceil(totalPlayers / perPage));
-    const safePage = Math.min(page, totalPages);
+    const safePage = Math.min(page, totalPages > 0 ? totalPages : 1);
     const start = (safePage - 1) * perPage;
-    const pageRows = rows.slice(start, start + perPage);
+    const pageRows = filteredRows.slice(start, start + perPage);
     
     return res.render('leaderboard', data(req, 'Leaderboard', 'core', {
       game: 'sdvx',
       style: 'vf',
       rows: pageRows,
       totalPlayers,
+      globalTotalPlayers,
+      searchQuery,
       totalPages,
       page: safePage,
       perPage,
@@ -2268,6 +2279,7 @@ webui.get('/leaderboard', wrap(async (req, res, next) => {
     }
     
     rows.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    rows.forEach((r, idx) => r.globalRank = idx + 1);
     
     const myRefid = await getLoggedRefid(req);
     let myRank = null;
@@ -2280,17 +2292,27 @@ webui.get('/leaderboard', wrap(async (req, res, next) => {
       }
     }
     
-    const totalPlayers = rows.length;
+    const searchQuery = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+    let filteredRows = rows;
+    if (searchQuery) {
+      const sq = searchQuery.toLowerCase();
+      filteredRows = rows.filter(r => r.name && r.name.toLowerCase().includes(sq));
+    }
+
+    const globalTotalPlayers = rows.length;
+    const totalPlayers = filteredRows.length;
     const totalPages = Math.max(1, Math.ceil(totalPlayers / perPage));
-    const safePage = Math.min(page, totalPages);
+    const safePage = Math.min(page, totalPages > 0 ? totalPages : 1);
     const start = (safePage - 1) * perPage;
-    const pageRows = rows.slice(start, start + perPage);
+    const pageRows = filteredRows.slice(start, start + perPage);
     
     return res.render('leaderboard', data(req, 'Leaderboard', 'core', {
       game: 'iidx',
       style,
       rows: pageRows,
       totalPlayers,
+      globalTotalPlayers,
+      searchQuery,
       totalPages,
       page: safePage,
       perPage,
