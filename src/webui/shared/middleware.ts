@@ -8,11 +8,14 @@ export const wrap =
 
 // Authentication middleware to ensure only logged-in users can access certain routes
 export const authMiddleware: RequestHandler = (req, res, next) => {
-  if (!req.session.user) return res.redirect('/login');
+  if (!req.session.user) {
+    if (req.path === '/login' || req.path === '/signup') return next();
+    return res.redirect('/login');
+  }
   next();
 };
 
 export const adminMiddleware: RequestHandler = (req, res, next) => {
-  if (!req.session.user || !req.session.user.admin) return res.redirect('/');
+  if (!req.session.user || !req.session.user.admin) return res.redirect('/about');
   next();
 };

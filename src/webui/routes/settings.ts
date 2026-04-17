@@ -116,12 +116,12 @@ settingsRouter.post(
       plugin = path.basename(req.path);
     }
 
-    if (plugin == null) return res.redirect(req.originalUrl);
+    if (plugin == null) return res.status(400).send('Invalid settings path');
 
     const configMap = CONFIG_MAP[plugin];
     const configData = plugin === 'core' ? CONFIG : CONFIG[plugin];
 
-    if (!configMap || !configData) return res.redirect(req.originalUrl);
+    if (!configMap || !configData) return res.status(404).send('Configuration map not found');
 
     let needRestart = false;
     for (const [key, config] of configMap) {

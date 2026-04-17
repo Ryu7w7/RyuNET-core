@@ -32,6 +32,7 @@ export const webui = Router();
 webui.use(
   session({
     cookie: { maxAge: 86400000, sameSite: true },
+    proxy: true,
     secret: 'c0dedeadc0debeef',
     resave: true,
     saveUninitialized: false,
