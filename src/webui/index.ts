@@ -28,6 +28,7 @@ const memorystore = createMemoryStore(session);
 export const webui = Router();
 
 // --- Core Middleware Setup ---
+
 webui.use(
   session({
     cookie: { maxAge: 86400000, sameSite: true },
@@ -38,6 +39,7 @@ webui.use(
   })
 );
 webui.use(cookies());
+
 webui.use(flash());
 webui.use(urlencoded({ extended: true, limit: '50mb' }));
 
@@ -79,5 +81,7 @@ webui.use(async (req, res) => {
 // 500
 webui.use((err: any, req: any, res: any, next: any) => {
   console.error(err);
-  return res.status(500).render('500', data(req, '500 - Oops', 'core', { err }));
+  if (!res.headersSent) {
+    res.status(500).render('500', data(req, '500 - Internal Server Error', 'core', { error: err.message }));
+  }
 });
