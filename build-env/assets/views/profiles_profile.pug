@@ -1,0 +1,98 @@
+extends _layout.pug
+
+block content
+  section.section.is-main-section
+    .columns
+      .column
+        .card
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-account
+              | Details
+          .card-content
+            .columns
+              .column.is-narrow
+                .image.is-64x64#profile-icon(jdenticon=profile.name jdenticon-size=64)
+              .column
+                .field.is-horizontal.is-narrow
+                  .field-label
+                    label.label ID
+                  .field-body
+                    .field
+                      .control.is-flex.is-align-items-center
+                        span.tag.is-info#refid #{profile.__refid}
+                        span.fi(class="fi-" + (countryCode || 'xx') style="margin-left: 10px; font-size: 1.25rem; border-radius: 2px;" data-tooltip="Player Country")
+                if isAdmin || isOwner
+                  form(method='post')
+                    .field.is-horizontal.is-narrow
+                      .field-label.is-normal
+                        label.label PIN
+                      .field-body
+                        .field
+                          .control
+                            input.input(type='password' size='4' maxlength='4' placeholder='••••' name='pin')
+                    .field.is-horizontal.is-narrow(data-tooltip="Only used in WebUI")
+                      .field-label.is-normal
+                        label.label Name
+                      .field-body
+                        .field
+                          .control
+                            input.input#name-input(type='text' placeholder=profile.name name='name')
+                    .field.is-horizontal.is-narrow(data-tooltip="Set custom PASELI balance (0 - 100000)")
+                      .field-label.is-normal
+                        label.label Balance
+                      .field-body
+                        .field
+                          .control
+                            input.input#paseli-input(type='number' min='0' max='100000' placeholder=(profile.paseli != null ? profile.paseli : '10000') name='paseli')
+                    .field.is-grouped
+                      .control.is-expanded
+                        if formMessage
+                          if formMessage.danger
+                            .notification.is-danger.is-light #{formMessage.message}
+                          else
+                            .notification.is-success.is-light #{formMessage.message}
+                      .control
+                        button.button.is-link(type='submit')
+                          span.icon.is-small
+                            i.mdi.mdi-pencil
+                          span Change
+      .column
+        .card
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-account
+              | Cards
+          .card-content
+            if isAdmin || isOwner
+              .field.is-horizontal.is-narrow
+                .field-label.is-normal
+                  label.label Add
+                .field-body
+                  .field.has-addons
+                    .control.is-expanded
+                      input.input#card-input(type='text' placeholder='Card Number' name='card')
+                    .control
+                      button.button.is-primary#add-card
+                        span.icon.is-small
+                          i.mdi.mdi-plus
+            each card, index in profile.cards
+              .ecard.box.is-paddingless(geopattern=card.cid)
+                .ecard-brand RyuNET
+                .ecard-print
+                  .desc Card Number
+                  .print #{card.print.replace(/[^a-z0-9]+/gi, '').replace(/(.{4})/g, '$1 ')}
+                .ecard-number
+                  .desc NFC
+                  .print #{card.cid}
+                .ecard-logo
+                if isAdmin || isOwner
+                  if index !== 0
+                    button.button.is-danger.ecard-delete(deleting=card.cid data-tooltip="Delete this card")
+                      span.icon
+                        i.mdi.mdi-trash-can.mdi-24px
+
+block scripts
+  script(type="text/javascript" src="/static/js/profile.js")

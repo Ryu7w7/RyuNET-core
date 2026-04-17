@@ -1,0 +1,23 @@
+extends _layout.pug
+
+block head
+  link(rel="stylesheet" href="/static/css/highlight.min.css")
+  script(src="/static/js/highlight.min.js")
+  <script>hljs.initHighlightingOnLoad();</script>
+
+block content
+  .shell
+    .control.has-icons-left.shell-input
+      input.input#shell-command(type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-plugin=subtitle)
+      span.icon.is-left
+        i.mdi.mdi-chevron-right
+    pre.has-padding-7.is-marginless#shell-content
+      code.language-json
+        .
+          /*
+            You can call any DB operations here.
+            Call clear() to clear history.
+          */
+
+block scripts
+  script(type="text/javascript" src="/static/js/data_plugin.js")

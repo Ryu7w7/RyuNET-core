@@ -1,0 +1,48 @@
+doctype html
+html
+  head
+    meta(charset="utf-8")
+    meta(http-equiv="X-UA-Compatible", content="ie=edge")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0")
+    title RyuNET - Login
+    link(rel="stylesheet", href="/static/css/bulma.min.css")
+    link(rel="stylesheet", href="/static/css/margin.min.css")
+    link(rel="stylesheet", href="/static/css/materialdesignicons.min.css")
+    link(rel="stylesheet", href="/static/css/style.css")
+    link(rel="stylesheet", href="/static/css/bulma-fix.css")
+    link(rel="stylesheet", href="/static/css/modern.css")
+  body.auth-body
+    .auth-container
+      .card.auth-card
+        .card-content
+          .has-text-centered.mb-5
+            .image.is-64x64.logo.auth-logo
+              img(src="/static/img/logo.png")
+            h1.title.is-4.auth-title RyuNET
+          if error
+            .notification.is-danger.is-light.mb-4 #{error}
+          form(method="post" action="/login")
+            .field
+              label.label Username
+              .control.has-icons-left
+                input.input(type="text" name="username" placeholder="Username" required autofocus)
+                span.icon.is-small.is-left
+                  i.mdi.mdi-account
+            .field
+              label.label Password
+              .control.has-icons-left
+                input.input(type="password" name="password" placeholder="Password" required)
+                span.icon.is-small.is-left
+                  i.mdi.mdi-lock
+            .field
+              button.button.is-info.is-fullwidth(type="submit")
+                span.icon
+                  i.mdi.mdi-login
+                span Login
+          hr
+          .has-text-centered
+            p.is-size-7.has-text-grey Don't have an account?
+              | 
+              a(href="/signup") Sign up
+            p.is-size-7.has-text-grey.mt-2
+              a(href="https://discord.gg/R6xUSKSykQ" target="_blank") Join our Discord community

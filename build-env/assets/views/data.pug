@@ -1,0 +1,58 @@
+extends _layout.pug
+include _delete.pug
+
+block content
+  section.section.is-main-section
+    if dev
+      .notification.is-warning
+        h4.title Developer Mode
+        p Query shell enabled
+
+    .columns.is-multiline
+      each plugin in pluginStats
+        .column.is-half
+          .card
+            header.card-header
+              p.card-header-title
+                span.icon
+                  i.mdi.mdi-puzzle
+                | #{plugin.id}
+                if (installed.indexOf(plugin.id) >= 0)
+                  span.tag.has-margin-left-7.is-primary
+                    span.icon
+                      i.mdi.mdi-check-decagram.mdi-18px
+                    span Active
+                else
+                  span.tag.has-margin-left-7.is-warning
+                    span.icon
+                      i.mdi.mdi-alert-decagram.mdi-18px
+                    span Uninstalled
+            .card-content
+              .level
+                .level-item.has-text-centered
+                  div
+                    p.heading Plugin
+                    p.subtitle #{plugin.name}
+                .level-item.has-text-centered
+                  div
+                    p.heading Data Usage
+                    p.subtitle #{plugin.dataSize}
+              .buttons.is-right
+                if dev
+                  a.button.is-warning(href=`/data/${plugin.id}`)
+                    span.icon.is-small
+                      i.mdi.mdi-table
+                    span Query
+                if admin
+                  button.button.is-danger.is-outlined.jb-modal.data-delete-button(disabled=!plugin.hasData data-target="confirm-modal" deleting=plugin.id deleting-name=plugin.id)
+                    span.icon.is-small
+                      i.mdi.mdi-trash-can
+                    span Delete
+
+block modal
+  +confirm("Deleting all data of", "/data/")
+    p
+      b Are you sure?
+    p You will not be able to undo this action.
+    p Currently installed plugins will be re-registered after clearing their data. If the target plugin creates data upon registering, it won't disappear from this page.
+    p To completely delete a plugin's data, you may need to uninstall the plugin first.

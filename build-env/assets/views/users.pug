@@ -1,0 +1,41 @@
+extends _layout.pug
+
+block content
+  section.section.is-main-section
+    .card
+      header.card-header
+        p.card-header-title
+          span.icon
+            i.mdi.mdi-account-group
+          | User Management
+      .card-content
+        .table-container
+          table.table.is-fullwidth.is-striped.is-hoverable
+            thead
+              tr
+                th Username
+                th Card Number
+                th Admin
+                th Actions
+            tbody
+              each account in users
+                tr
+                  td #{account.username}
+                  td #{account.cardNumber || '-'}
+                  td
+                    if account.admin
+                      span.tag.is-info Admin
+                    else
+                      span.tag Regular
+                  td
+                    if account.username !== user
+                      form.is-inline(method="post" action="/users/toggle-admin" style="display:inline")
+                        input(type="hidden" name="username" value=account.username)
+                        if account.admin
+                          button.button.is-small.is-warning(type="submit" data-tooltip="Remove admin")
+                            span.icon.is-small
+                              i.mdi.mdi-shield-remove
+                        else
+                          button.button.is-small.is-success(type="submit" data-tooltip="Make admin")
+                            span.icon.is-small
+                              i.mdi.mdi-shield-plus

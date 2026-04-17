@@ -1,0 +1,165 @@
+extends _layout.pug
+
+block content
+  section.section.is-main-section
+    .box
+      h2.title.is-4 Global Leaderboard
+      .level.is-mobile.mt-3.mb-3
+        .level-left
+          .level-item
+            .tabs.is-toggle.is-toggle-rounded.m-0
+              ul
+                li(class=game=='sdvx' ? 'is-active' : '')
+                  a(href=`/leaderboard?game=sdvx${searchQuery ? '&search='+encodeURIComponent(searchQuery) : ''}`) SDVX
+                li(class=game=='iidx' ? 'is-active' : '')
+                  a(href=`/leaderboard?game=iidx&style=sp${searchQuery ? '&search='+encodeURIComponent(searchQuery) : ''}`) IIDX
+        .level-right
+          .level-item
+            form(method="GET" action="/leaderboard" style="margin: 0;")
+              input(type="hidden" name="game" value=game)
+              if game == 'iidx'
+                - var s_val = (typeof style === 'string' && style) ? style : 'sp'
+                input(type="hidden" name="style" value=s_val)
+              .field.has-addons.m-0
+                .control
+                  input.input.is-rounded(type="text" placeholder="Search player..." name="search" value=searchQuery || '')
+                .control
+                  button.button.is-info.is-rounded(type="submit")
+                    span.icon: i.mdi.mdi-magnify
+      if game == 'iidx'
+        - const s = (typeof style === 'string' && style) ? style : 'sp'
+        .tabs.is-small.is-toggle.is-toggle-rounded.mt-2
+          ul
+            li(class=s=='sp' ? 'is-active' : '')
+              a(href=`/leaderboard?game=iidx&style=sp${searchQuery ? '&search='+encodeURIComponent(searchQuery) : ''}`) SP
+            li(class=s=='dp' ? 'is-active' : '')
+              a(href=`/leaderboard?game=iidx&style=dp${searchQuery ? '&search='+encodeURIComponent(searchQuery) : ''}`) DP
+    if game == 'sdvx'
+      .box
+        h3.title.is-5 SOUND VOLTEX — VOLFORCE RANKING
+        if myRank && myRow
+          .notification.is-success
+            b Global Ranking:
+            |  ##{myRank} of #{globalTotalPlayers || totalPlayers}
+            br
+            | VOLFORCE: #{Number(myRow.value).toFixed(3)}
+            |  — Charts: #{myRow.extraA}
+            |  — VF Class: #{myRow.className}
+        else
+          .notification
+            | Not yet.
+    else if game == 'iidx'
+      .box
+        if String(style).toLowerCase() == 'dp'
+          h3.title.is-5 beatmania IIDX — DP EX SCORE RANKING
+        else
+          h3.title.is-5 beatmania IIDX — SP EX SCORE RANKING
+        if myRank && myRow
+          .notification.is-success
+            b Global Ranking:
+            |  ##{myRank} of #{globalTotalPlayers || totalPlayers}
+            br
+            | EX Score: #{myRow.value} — Entries: #{myRow.extraA} — Mode: #{String(style).toUpperCase()}
+        else
+          .notification
+            | Not yet.
+    if !rows || rows.length === 0
+      .box
+        p.has-text-grey-light No ranking data available yet.
+    else
+      .box
+        - const currentPage = page || 1
+        - const pp = perPage || 20
+        - const tp = totalPages || 1
+        - const s2 = (typeof style === 'string' && style) ? style : 'sp'
+        - const sqStr = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''
+        - const baseQs = ((game === 'sdvx') ? 'game=sdvx' : `game=iidx&style=${s2}`) + sqStr
+        
+        - const maxPagesToShow = 5;
+        - let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+        - let endPage = Math.min(tp, startPage + maxPagesToShow - 1);
+        - if (endPage - startPage + 1 < maxPagesToShow) { startPage = Math.max(1, endPage - maxPagesToShow + 1); }
+        
+        if tp > 1
+          .is-flex.is-justify-content-center.is-align-items-center.mt-4.mb-5(style="gap: 0.5rem; width: 100%; margin: 0 auto; flex-wrap: wrap;")
+            if currentPage > 1
+              a.button.is-info(href=`/leaderboard?${baseQs}&page=${currentPage - 1}` style="border-radius: 8px;")
+                span.icon: i.mdi.mdi-chevron-left
+            else
+              button.button.is-info(disabled style="opacity: 0.5; cursor: default; border-radius: 8px;")
+                span.icon: i.mdi.mdi-chevron-left
+
+            if startPage > 1
+              a.button(href=`/leaderboard?${baseQs}&page=1` style="border-radius: 8px;") 1
+              if startPage > 2
+                span(style="color: var(--muted); padding: 0 0.5rem;") ...
+                
+            - for (let p = startPage; p <= endPage; p++)
+              if p === currentPage
+                span.button.is-primary(style="border-radius: 8px; font-weight: bold; pointer-events: none;") #{p}
+              else
+                a.button(href=`/leaderboard?${baseQs}&page=${p}` style="border-radius: 8px;") #{p}
+                
+            if endPage < tp
+              if endPage < tp - 1
+                span(style="color: var(--muted); padding: 0 0.5rem;") ...
+              a.button(href=`/leaderboard?${baseQs}&page=${tp}` style="border-radius: 8px;") #{tp}
+
+            if currentPage < tp
+              a.button.is-info(href=`/leaderboard?${baseQs}&page=${currentPage + 1}` style="border-radius: 8px;")
+                span.icon: i.mdi.mdi-chevron-right
+            else
+              button.button.is-info(disabled style="opacity: 0.5; cursor: default; border-radius: 8px;")
+                span.icon: i.mdi.mdi-chevron-right
+
+        .table-container(style="max-height: 65vh; overflow-y: auto; border-radius: var(--radius); border: 1px solid var(--border); background: rgba(0,0,0,0.1);")
+          table.table.is-fullwidth.is-hoverable.is-striped(style="margin-bottom: 0; table-layout: fixed;")
+            thead
+              tr
+                th(style="width: 15%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 0; text-align: center; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") Rank
+                th(style="width: 35%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 1.5rem; text-align: left; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") Player
+                if game == 'sdvx'
+                  th(style="width: 15%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 0; text-align: center; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") VOLFORCE
+                  th(style="width: 10%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 0; text-align: center; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") Charts
+                  th(style="width: 25%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 1.5rem; text-align: left; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") VF Class
+                else if game == 'iidx'
+                  th(style="width: 15%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 0; text-align: center; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") EX Score
+                  th(style="width: 15%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 0; text-align: center; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") Entries
+                  th(style="width: 20%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 1.5rem; text-align: left; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") Mode
+            tbody
+              each r, i in rows
+                - const rank = r.globalRank || (((currentPage - 1) * pp) + i + 1)
+                tr
+                  td(style="vertical-align: middle; padding: 1rem 0; text-align: center;")
+                    .is-flex.is-justify-content-center.is-align-items-center
+                      span(style="display: inline-block; width: 28px; text-align: right;")
+                        if rank === 1
+                          span(title="1st Place") 🥇
+                        else if rank === 2
+                          span(title="2nd Place") 🥈
+                        else if rank === 3
+                          span(title="3rd Place") 🥉
+                      strong(style="display: inline-block; width: 44px; text-align: left; margin-left: 6px; font-size: 1.15rem;") ##{rank}
+
+                  td(style="vertical-align: middle; padding: 1rem 1.5rem; text-align: left;")
+                    span.fi(class="fi-" + (r.countryCode || 'xx') style="margin-right: 8px; font-size: 1.15rem; border-radius: 2px;")
+                    strong(style="color: var(--info); font-size: 1.15rem; letter-spacing: 0.5px;") #{r.name}
+
+                  if game == 'sdvx'
+                    td(style="vertical-align: middle; padding: 1rem 0; text-align: center;")
+                      span.tag.is-primary.is-light(style="font-family: monospace; font-size: 1.1rem; font-weight: bold;") #{Number(r.value).toFixed(3)}
+                    td(style="vertical-align: middle; padding: 1rem 0; text-align: center;")
+                      span(style="font-weight: 600; font-size: 1.1rem;") #{r.extraA}
+                    td(style="vertical-align: middle; padding: 1rem 1.5rem; text-align: left;")
+                      .is-flex.is-align-items-center.is-justify-content-flex-start(style="gap:.75rem;")
+                        if r.classImg
+                          img(src=r.classImg alt="" style="height:32px; width:auto; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));" onerror="this.style.display='none';")
+                        span(style="font-weight: 700; color: var(--text); font-size: 1.05rem; letter-spacing: 0.5px;") #{r.className}
+
+                  else if game == 'iidx'
+                    td(style="vertical-align: middle; padding: 1rem 0; text-align: center;") 
+                      span.tag.is-info.is-light(style="font-family: monospace; font-size: 1.1rem; font-weight: bold;") #{r.value}
+                    td(style="vertical-align: middle; padding: 1rem 0; text-align: center;")
+                      span(style="font-weight: 600; font-size: 1.1rem;") #{r.extraA}
+                    td(style="vertical-align: middle; padding: 1rem 1.5rem; text-align: left;")
+                      span.tag.is-dark.is-medium(style="font-weight: bold; letter-spacing: 1px;") #{String(style).toUpperCase()}

@@ -1,0 +1,53 @@
+extends _layout.pug
+
+block content
+  section.section.is-main-section
+    .columns
+      .column.is-6.is-offset-3
+        .card
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-account-cog
+              | Account Settings
+          .card-content
+            form(method="post" action="/account")
+              .field.is-horizontal
+                .field-label.is-normal
+                  label.label Username
+                .field-body
+                  .field
+                    .control.has-icons-left
+                      input.input(type="text" name="username" placeholder="Username" value=user)
+                      span.icon.is-small.is-left
+                        i.mdi.mdi-account
+              .field.is-horizontal
+                .field-label.is-normal
+                  label.label New Password
+                .field-body
+                  .field
+                    .control.has-icons-left
+                      input.input(type="password" name="password" placeholder="Leave blank to keep current")
+                      span.icon.is-small.is-left
+                        i.mdi.mdi-lock
+              .field.is-horizontal
+                .field-label.is-normal
+                  label.label Confirm Password
+                .field-body
+                  .field
+                    .control.has-icons-left
+                      input.input(type="password" name="confirmPassword" placeholder="Confirm new password")
+                      span.icon.is-small.is-left
+                        i.mdi.mdi-lock-check
+              .field.is-grouped.is-grouped-right
+                .control.is-expanded
+                  if formMessage
+                    if formMessage.danger
+                      .notification.is-danger.is-light #{formMessage.message}
+                    else
+                      .notification.is-success.is-light #{formMessage.message}
+                .control
+                  button.button.is-link(type="submit")
+                    span.icon.is-small
+                      i.mdi.mdi-content-save
+                    span Save
