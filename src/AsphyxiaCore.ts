@@ -51,6 +51,7 @@ function Main() {
 
   const EAMUSE = express();
 
+  EAMUSE.set('trust proxy', 1);
   EAMUSE.disable('etag');
   EAMUSE.disable('x-powered-by');
 
