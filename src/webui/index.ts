@@ -31,7 +31,7 @@ export const webui = Router();
 
 webui.use(
   session({
-    cookie: { maxAge: 86400000, sameSite: true },
+    cookie: { maxAge: 86400000, sameSite: 'lax' },
     proxy: true,
     secret: 'c0dedeadc0debeef',
     resave: true,
@@ -40,6 +40,17 @@ webui.use(
   })
 );
 webui.use(cookies());
+
+// Redirect Logging (Useful for debugging production loops)
+webui.use((req, res, next) => {
+  const originalRedirect = res.redirect;
+  res.redirect = function (urlOrStatus: any, url?: any): any {
+    const targetUrl = typeof urlOrStatus === 'number' ? url : urlOrStatus;
+    console.log(`[WebUI] Redirect: ${req.method} ${req.originalUrl} -> ${targetUrl}`);
+    return originalRedirect.apply(this, arguments as any);
+  };
+  next();
+});
 
 webui.use(flash());
 webui.use(urlencoded({ extended: true, limit: '50mb' }));
