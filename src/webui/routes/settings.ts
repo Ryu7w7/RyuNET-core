@@ -47,8 +47,11 @@ settingsRouter.get('/favicon.ico', (_req, res) => {
 
 settingsRouter.get(
   '/',
-  adminMiddleware,
   wrap(async (req, res) => {
+    if (!req.session.user?.admin) {
+      return res.redirect('/about');
+    }
+
     const memory = `${(process.memoryUsage().rss / 1048576).toFixed(2)}MB`;
     const config = ConfigData('core');
     const changelog = markdown.makeHtml(ReadAssets('changelog.md'));

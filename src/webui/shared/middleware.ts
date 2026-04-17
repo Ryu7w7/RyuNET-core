@@ -18,8 +18,7 @@ export const authMiddleware: RequestHandler = (req, res, next) => {
 
 export const adminMiddleware: RequestHandler = (req, res, next) => {
   if (!req.session.user || !req.session.user.admin) {
-    if (req.path.toLowerCase() === '/about') return next();
-    return res.redirect('/about');
+    return res.redirect('/');
   }
   next();
 };
