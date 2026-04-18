@@ -15,9 +15,11 @@ import { leaderboardRouter } from './routes/leaderboard';
 import { migrationRouter } from './routes/migration';
 import { settingsRouter } from './routes/settings';
 import { pluginRouter } from './routes/plugin';
+import { oauthRouter } from './routes/oauth';
+import { nauticaRouter } from './routes/nautica';
 
 // Shared
-import { authMiddleware } from './shared/middleware';
+import { authMiddleware, bearerTokenMiddleware } from './shared/middleware';
 import { data } from './shared/helpers';
 
 // Legacy / Component Imports
@@ -34,8 +36,8 @@ webui.use(
     cookie: { maxAge: 86400000, sameSite: 'lax' },
     proxy: true,
     secret: 'c0dedeadc0debeef',
-    resave: true,
-    saveUninitialized: false,
+    resave: false,
+    saveUninitialized: true,
     store: new memorystore({ checkPeriod: 86400000 }),
   })
 );
@@ -58,7 +60,7 @@ webui.use(urlencoded({ extended: true, limit: '50mb' }));
 // --- Global Rate Limiting ---
 const generalLimit = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 100, // Limit each IP to 100 requests per minute
+  max: 1000, // Limit each IP to 1000 requests per minute
   message: 'Too many requests from this IP, please try again later',
 });
 webui.use(generalLimit);
@@ -66,15 +68,18 @@ webui.use(generalLimit);
 // --- Public Routes ---
 webui.use(authRouter);
 webui.use('/tachi', tachiRouter); // Some Tachi routes are public or handled internally
+webui.use(oauthRouter); // OAuth Provider endpoints
+webui.use(nauticaRouter); // SDVX Custom Charts / Drive endpoints
 
 // --- Protected Routes ---
+webui.use(bearerTokenMiddleware);
 webui.use(authMiddleware);
 
 webui.use(userRouter);
 webui.use(profileRouter);
 webui.use(migrationRouter);
-webui.use('/leaderboard', leaderboardRouter);
-webui.use('/plugin', pluginRouter);
+webui.use(leaderboardRouter);
+webui.use(pluginRouter);
 
 // Dashboard and general settings (handles catch-all POST)
 webui.use(settingsRouter);

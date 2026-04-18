@@ -77,7 +77,7 @@ async function getLoggedRefid(req: any) {
 }
 
 // --- Route Handler ---
-leaderboardRouter.get('/', wrap(async (req, res, next) => {
+leaderboardRouter.get('/leaderboard', wrap(async (req, res, next) => {
   const game = String(req.query.game || 'sdvx').toLowerCase();
   const style = String(req.query.style || 'sp').toLowerCase();
   const cacheKey = `${game}_${style}`;

@@ -1,0 +1,297 @@
+extends _layout.pug
+
+block content
+  section.section.is-main-section
+    .columns
+      .column.is-10.is-offset-1
+
+        .card.mb-5
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-book-open-variant
+              | Overview
+          .card-content.content
+            p This documents all available API endpoints on this Asphyxia CORE server. Endpoints can be called using either an <strong>API token</strong> or an <strong>OAuth 2.0 access token</strong> via the <code>Authorization: Bearer &lt;token&gt;</code> header.
+            h5 Base URL
+            pre http://#{baseUrl}
+            h5 Authentication Methods
+            table.table.is-fullwidth.is-bordered
+              thead
+                tr
+                  th Method
+                  th How to obtain
+                  th Header
+              tbody
+                tr
+                  td API Token
+                  td Generate from Account &rarr; API Token
+                  td
+                    code Authorization: Bearer &lt;api_token&gt;
+                tr
+                  td OAuth 2.0
+                  td Standard authorization code flow (see below)
+                  td
+                    code Authorization: Bearer &lt;access_token&gt;
+
+        .card.mb-5
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-shield-lock-outline
+              | OAuth 2.0 Flow
+          .card-content.content
+            p Asphyxia CORE implements the <strong>Authorization Code</strong> grant type. Register an OAuth client from the Account page.
+            h5 1. Redirect user to authorize
+            pre GET /oauth/authorize?response_type=code&amp;client_id=CLIENT_ID&amp;redirect_uri=REDIRECT_URI&amp;scope=profile&amp;state=RANDOM
+            p The user will see a consent page. On approval, they are redirected to your <code>redirect_uri</code> with <code>?code=AUTH_CODE&amp;state=STATE</code>.
+            h5 2. Exchange code for tokens
+            pre.
+              POST /oauth/token
+              Content-Type: application/json
+
+              {
+                "grant_type": "authorization_code",
+                "code": "AUTH_CODE",
+                "redirect_uri": "REDIRECT_URI",
+                "client_id": "CLIENT_ID",
+                "client_secret": "CLIENT_SECRET"
+              }
+            p Response:
+            pre.
+              {
+                "access_token": "...",
+                "token_type": "Bearer",
+                "expires_in": 86400,
+                "refresh_token": "...",
+                "scope": "profile"
+              }
+            h5 3. Refresh an expired token
+            pre.
+              POST /oauth/token
+              Content-Type: application/json
+
+              {
+                "grant_type": "refresh_token",
+                "refresh_token": "REFRESH_TOKEN",
+                "client_id": "CLIENT_ID",
+                "client_secret": "CLIENT_SECRET"
+              }
+            h5 4. Revoke a token
+            pre.
+              POST /oauth/revoke
+              Content-Type: application/json
+
+              { "token": "ACCESS_TOKEN" }
+
+        .card.mb-5
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-account
+              | Profile
+          .card-content.content
+            h5
+              span.tag.is-link.is-light GET
+              |  /api/profile
+            p Returns the authenticated user's username, card number, and profile reference ID.
+            p
+              strong Response:
+            pre.
+              {
+                "success": true,
+                "username": "player1",
+                "cardNumber": "AABBCCDD01020304",
+                "refid": "abc123..."
+              }
+
+        .card.mb-5
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-key-variant
+              | API Token Management
+          .card-content.content
+            h5
+              span.tag.is-link.is-light GET
+              |  /account/api-token/status
+            p Check whether the current user has an active API token.
+            p
+              strong Response:
+            pre { "success": true, "exists": true }
+
+            hr
+
+            h5
+              span.tag.is-warning.is-light POST
+              |  /account/api-token
+            p Generate a new API token (replaces existing one).
+            p
+              strong Response:
+            pre { "success": true, "token": "abc123..." }
+
+            hr
+
+            h5
+              span.tag.is-warning.is-light POST
+              |  /account/api-token/revoke
+            p Revoke the current user's API token.
+            p
+              strong Response:
+            pre { "success": true }
+
+        .card.mb-5
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-application-cog-outline
+              | OAuth Client Management
+          .card-content.content
+            h5
+              span.tag.is-link.is-light GET
+              |  /oauth/clients
+            p List all OAuth clients registered by the current user.
+            p
+              strong Response:
+            pre.
+              {
+                "success": true,
+                "clients": [
+                  { "clientId": "...", "name": "My App", "redirectUri": "https://..." }
+                ]
+              }
+
+            hr
+
+            h5
+              span.tag.is-warning.is-light POST
+              |  /oauth/clients
+            p Register a new OAuth client.
+            p
+              strong Body:
+            pre { "name": "My App", "redirect_uri": "https://example.com/callback" }
+            p
+              strong Response:
+            pre { "success": true, "clientId": "...", "clientSecret": "..." }
+
+            hr
+
+            h5
+              span.tag.is-danger.is-light DELETE
+              |  /oauth/clients/:clientId
+            p Delete an OAuth client and revoke all its tokens. Only the client owner or an admin can delete.
+            p
+              strong Response:
+            pre { "success": true }
+
+            hr
+
+            h5
+              span.tag.is-link.is-light GET
+              |  /oauth/authorized
+            p List applications the current user has authorized via OAuth.
+            p
+              strong Response:
+            pre.
+              {
+                "success": true,
+                "apps": [
+                  { "clientId": "...", "name": "My App", "scopes": ["profile"] }
+                ]
+              }
+
+            hr
+
+            h5
+              span.tag.is-warning.is-light POST
+              |  /oauth/authorized/revoke
+            p Revoke all tokens for a specific authorized application.
+            p
+              strong Body:
+            pre { "client_id": "CLIENT_ID" }
+            p
+              strong Response:
+            pre { "success": true }
+
+        if tachiEnabled
+          .card.mb-5
+            header.card-header
+              p.card-header-title
+                span.icon
+                  i.mdi.mdi-sync
+                | Tachi Integration
+            .card-content.content
+              h5
+                span.tag.is-link.is-light GET
+                |  /tachi/status
+              p Check if the current user has a valid Tachi connection.
+              p
+                strong Response:
+              pre { "connected": true, "username": "tachi_user" }
+
+              hr
+
+              h5
+                span.tag.is-warning.is-light POST
+                |  /api/tachi/sync
+              p Export the current user's SDVX scores to Kamaitachi. Requires a connected Tachi account.
+              p
+                strong Body (optional):
+              pre { "refid": "...", "forceAll": false }
+              p
+                strong Response:
+              pre.
+                {
+                  "success": true,
+                  "description": "Exported 42 scores to Tachi",
+                  "body": { ... }
+                }
+
+        if flowerEnabled
+          .card.mb-5
+            header.card-header
+              p.card-header-title
+                span.icon
+                  i.mdi.mdi-flower
+                | Project Flower Integration
+            .card-content.content
+              h5
+                span.tag.is-link.is-light GET
+                |  /flower/status
+              p Check if the current user has a valid Project Flower connection.
+              p
+                strong Response:
+              pre { "connected": true }
+
+              hr
+
+              h5
+                span.tag.is-warning.is-light POST
+                |  /api/flower/sync
+              p Export the current user's SDVX scores to Project Flower. Requires a connected Flower account.
+              p
+                strong Body (optional):
+              pre { "refid": "..." }
+
+        .card.mb-5
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-database
+              | Plugin Data (Generic)
+          .card-content.content
+            p These endpoints use the WebUI's built-in AJAX/emit mechanism and are typically called via the frontend. They accept JSON bodies and operate on plugin-scoped data.
+
+            h5
+              span.tag.is-warning.is-light POST
+              |  / (catch-all POST)
+            p The catch-all POST handler routes requests based on the <code>event</code> field in the JSON body. Supported events include plugin-specific operations (find, insert, update, remove, count, upsert, findOne) and profile management.
+            p
+              strong Common body shape:
+            pre.
+              {
+                "event": "find",
+                "plugin": "sdvx@asphyxia",
+                "query": { "__s": "score" }
+              }
+            p Events are handled by the <code>emit</code> function and individual plugin registrations. Refer to each plugin's source for available events.

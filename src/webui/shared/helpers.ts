@@ -40,7 +40,7 @@ export async function userOwnsProfile(req: Request, refid: string): Promise<bool
 export function data(req: Request, title: string, plugin: string, attr?: any) {
   const formOk = req.flash('formOk');
   const formWarn = req.flash('formWarn');
-  const aside = req.cookies.asidemenu == 'true';
+  const aside = (req.cookies && req.cookies.asidemenu) == 'true';
 
   let formMessage = null;
   if (formOk.length > 0) {

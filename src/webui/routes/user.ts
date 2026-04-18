@@ -4,7 +4,13 @@ import {
   UpdateUserAccount,
   GetAllUsers,
   SetUserAdmin,
+  GenerateApiToken,
+  GetApiTokenExists,
+  DeleteApiToken,
+  FindCard,
+  FindProfile,
 } from '../../utils/EamuseIO';
+import { json } from 'body-parser';
 import { wrap, adminMiddleware } from '../shared/middleware';
 import { data } from '../shared/helpers';
 
@@ -65,11 +71,75 @@ userRouter.post(
   })
 );
 
-// Admin-only User Management
-userRouter.use(adminMiddleware);
+// API token management
+userRouter.post(
+  '/account/api-token',
+  json({ limit: '1mb' }),
+  wrap(async (req, res) => {
+    const token = await GenerateApiToken(req.session.user!.username);
+    if (!token) {
+      if (req.headers.accept === 'application/json' || (req as any).isApiAuth) {
+        return res.status(500).json({ success: false, description: 'Failed to generate token' });
+      }
+      req.flash('formWarn', 'Failed to generate API token.');
+      return res.redirect('/account');
+    }
+
+    if (req.headers.accept === 'application/json' || (req as any).isApiAuth) {
+      return res.json({ success: true, token });
+    }
+    req.flash('formOk', `API token generated. Copy it now — it won't be shown again: ${token}`);
+    res.redirect('/account');
+  })
+);
+
+userRouter.post(
+  '/account/api-token/revoke',
+  wrap(async (req, res) => {
+    await DeleteApiToken(req.session.user!.username);
+    if (req.headers.accept === 'application/json' || (req as any).isApiAuth) {
+      return res.json({ success: true });
+    }
+    req.flash('formOk', 'API token revoked.');
+    res.redirect('/account');
+  })
+);
 
 userRouter.get(
+  '/account/api-token/status',
+  wrap(async (req, res) => {
+    const exists = await GetApiTokenExists(req.session.user!.username);
+    res.json({ success: true, exists });
+  })
+);
+
+// Current user info (JSON, for API/OAuth consumers)
+userRouter.get(
+  '/api/me',
+  wrap(async (req, res) => {
+    const user = req.session.user!;
+    const result: any = { success: true, username: user.username, admin: user.admin };
+
+    if (user.cardNumber) {
+      result.cardNumber = user.cardNumber;
+      const card = await FindCard(user.cardNumber);
+      if (card && card.__refid) {
+        result.refid = card.__refid;
+        const profile = await FindProfile(card.__refid);
+        if (profile && profile.name) {
+          result.playerName = profile.name;
+        }
+      }
+    }
+
+    res.json(result);
+  })
+);
+
+// Admin-only User Management
+userRouter.get(
   '/users',
+  adminMiddleware,
   wrap(async (req, res) => {
     const users = await GetAllUsers();
     res.render('users', data(req, 'Users', 'core', { users }));
@@ -78,6 +148,7 @@ userRouter.get(
 
 userRouter.post(
   '/users/toggle-admin',
+  adminMiddleware,
   wrap(async (req, res) => {
     const { username } = req.body;
     if (username === req.session.user!.username) return res.redirect('/users');
@@ -92,6 +163,7 @@ userRouter.post(
 
 userRouter.get(
   '/admin/account/:username',
+  adminMiddleware,
   wrap(async (req, res) => {
     const targetUser = await FindUserByUsername(req.params.username);
     if (!targetUser) return res.redirect('/profiles');
@@ -101,6 +173,7 @@ userRouter.get(
 
 userRouter.post(
   '/admin/account/:username',
+  adminMiddleware,
   wrap(async (req, res) => {
     const targetUser = await FindUserByUsername(req.params.username);
     if (!targetUser) return res.redirect('/profiles');

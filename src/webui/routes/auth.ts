@@ -188,6 +188,10 @@ authRouter.post(
   })
 );
 
+authRouter.get('/help/card-number', (_req, res) => {
+  res.render('help_card_number');
+});
+
 authRouter.get('/logout', (req, res) => {
   req.session.destroy(() => {
     res.redirect('/login');

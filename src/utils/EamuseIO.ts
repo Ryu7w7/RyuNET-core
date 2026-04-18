@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import {
   existsSync,
   mkdirSync,
@@ -699,6 +700,252 @@ export async function GetTachiTokenByRefid(refid: string): Promise<string | null
     return null;
   }
 }
+
+//             API Tokens
+// =========================================
+
+export async function GenerateApiToken(username: string): Promise<string | null> {
+  try {
+    const token = randomBytes(32).toString('hex');
+    const existing = await CoreDB.findOneAsync<any>({ __s: 'api_token', username });
+    if (existing) {
+      await CoreDB.updateAsync({ __s: 'api_token', username }, { $set: { token } });
+    } else {
+      await CoreDB.insertAsync({ __s: 'api_token', username, token });
+    }
+    return token;
+  } catch (err) {
+    Logger.error(err);
+    return null;
+  }
+}
+
+export async function GetApiTokenByToken(
+  token: string
+): Promise<{ username: string; cardNumber: string; admin: boolean } | null> {
+  try {
+    const doc = await CoreDB.findOneAsync<any>({ __s: 'api_token', token });
+    if (!doc) return null;
+    const user = await FindUserByUsername(doc.username);
+    if (!user) return null;
+    return { username: user.username, cardNumber: user.cardNumber, admin: user.admin };
+  } catch (err) {
+    Logger.error(err);
+    return null;
+  }
+}
+
+export async function GetApiTokenExists(username: string): Promise<boolean> {
+  try {
+    const doc = await CoreDB.findOneAsync<any>({ __s: 'api_token', username });
+    return !!doc;
+  } catch (err) {
+    Logger.error(err);
+    return false;
+  }
+}
+
+export async function DeleteApiToken(username: string): Promise<boolean> {
+  try {
+    await CoreDB.removeAsync({ __s: 'api_token', username }, {});
+    return true;
+  } catch (err) {
+    Logger.error(err);
+    return false;
+  }
+}
+
+// =========================================
+//             OAuth Provider
+// =========================================
+
+export async function CreateOAuthClient(
+  name: string,
+  redirectUri: string,
+  createdBy: string
+): Promise<{ clientId: string; clientSecret: string } | null> {
+  try {
+    const clientId = randomBytes(16).toString('hex');
+    const clientSecret = randomBytes(32).toString('hex');
+    await CoreDB.insertAsync({
+      __s: 'oauth_client',
+      clientId,
+      clientSecret,
+      name,
+      redirectUri,
+      createdBy,
+    });
+    return { clientId, clientSecret };
+  } catch (err) {
+    Logger.error(err);
+    return null;
+  }
+}
+
+export async function GetOAuthClient(clientId: string) {
+  try {
+    return await CoreDB.findOneAsync<any>({ __s: 'oauth_client', clientId });
+  } catch (err) {
+    Logger.error(err);
+    return null;
+  }
+}
+
+export async function GetOAuthClientsByUser(username: string): Promise<any[]> {
+  try {
+    return await CoreDB.findAsync<any>({ __s: 'oauth_client', createdBy: username });
+  } catch (err) {
+    Logger.error(err);
+    return [];
+  }
+}
+
+export async function DeleteOAuthClient(clientId: string, username: string): Promise<boolean> {
+  try {
+    // Also clean up any tokens and codes issued for this client
+    await CoreDB.removeAsync({ __s: 'oauth_code', clientId }, { multi: true });
+    await CoreDB.removeAsync({ __s: 'oauth_access_token', clientId }, { multi: true });
+    await CoreDB.removeAsync({ __s: 'oauth_client', clientId, createdBy: username }, {});
+    return true;
+  } catch (err) {
+    Logger.error(err);
+    return false;
+  }
+}
+
+export async function CreateOAuthCode(
+  clientId: string,
+  username: string,
+  redirectUri: string,
+  scopes: string[]
+): Promise<string | null> {
+  try {
+    const code = randomBytes(32).toString('hex');
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    await CoreDB.insertAsync({
+      __s: 'oauth_code',
+      code,
+      clientId,
+      username,
+      redirectUri,
+      scopes,
+      expiresAt,
+    });
+    return code;
+  } catch (err) {
+    Logger.error(err);
+    return null;
+  }
+}
+
+export async function ConsumeOAuthCode(code: string) {
+  try {
+    const doc = await CoreDB.findOneAsync<any>({ __s: 'oauth_code', code });
+    if (!doc) return null;
+    await CoreDB.removeAsync({ __s: 'oauth_code', code }, {});
+    if (doc.expiresAt < Date.now()) return null;
+    return doc;
+  } catch (err) {
+    Logger.error(err);
+    return null;
+  }
+}
+
+export async function CreateOAuthAccessToken(
+  clientId: string,
+  username: string,
+  scopes: string[]
+): Promise<{ accessToken: string; refreshToken: string } | null> {
+  try {
+    const accessToken = randomBytes(32).toString('hex');
+    const refreshToken = randomBytes(32).toString('hex');
+    const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    await CoreDB.insertAsync({
+      __s: 'oauth_access_token',
+      accessToken,
+      refreshToken,
+      clientId,
+      username,
+      scopes,
+      expiresAt,
+    });
+    return { accessToken, refreshToken };
+  } catch (err) {
+    Logger.error(err);
+    return null;
+  }
+}
+
+export async function GetOAuthAccessToken(
+  token: string
+): Promise<{ username: string; cardNumber: string; admin: boolean; scopes: string[] } | null> {
+  try {
+    const doc = await CoreDB.findOneAsync<any>({ __s: 'oauth_access_token', accessToken: token });
+    if (!doc) return null;
+    if (doc.expiresAt < Date.now()) {
+      await CoreDB.removeAsync({ __s: 'oauth_access_token', accessToken: token }, {});
+      return null;
+    }
+    const user = await FindUserByUsername(doc.username);
+    if (!user) return null;
+    return { username: user.username, cardNumber: user.cardNumber, admin: user.admin, scopes: doc.scopes };
+  } catch (err) {
+    Logger.error(err);
+    return null;
+  }
+}
+
+export async function RefreshOAuthAccessToken(
+  refreshToken: string
+): Promise<{ accessToken: string; refreshToken: string; expiresIn: number } | null> {
+  try {
+    const doc = await CoreDB.findOneAsync<any>({ __s: 'oauth_access_token', refreshToken });
+    if (!doc) return null;
+
+    const newAccessToken = randomBytes(32).toString('hex');
+    const newRefreshToken = randomBytes(32).toString('hex');
+    const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+
+    await CoreDB.updateAsync(
+      { __s: 'oauth_access_token', refreshToken },
+      { $set: { accessToken: newAccessToken, refreshToken: newRefreshToken, expiresAt } }
+    );
+    return { accessToken: newAccessToken, refreshToken: newRefreshToken, expiresIn: 86400 };
+  } catch (err) {
+    Logger.error(err);
+    return null;
+  }
+}
+
+export async function RevokeOAuthToken(token: string): Promise<boolean> {
+  try {
+    await CoreDB.removeAsync({ __s: 'oauth_access_token', accessToken: token }, {});
+    return true;
+  } catch (err) {
+    Logger.error(err);
+    return false;
+  }
+}
+
+export async function GetOAuthTokensByUser(username: string): Promise<any[]> {
+  try {
+    return await CoreDB.findAsync<any>({ __s: 'oauth_access_token', username });
+  } catch (err) {
+    Logger.error(err);
+    return [];
+  }
+}
+
+export async function RevokeOAuthTokensByClientForUser(clientId: string, username: string): Promise<boolean> {
+  try {
+    await CoreDB.removeAsync({ __s: 'oauth_access_token', clientId, username }, { multi: true });
+    return true;
+  } catch (err) {
+    Logger.error(err);
+    return false;
+  }
+}
+
 
 export async function GetProfiles() {
   try {

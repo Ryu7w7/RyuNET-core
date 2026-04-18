@@ -25,7 +25,7 @@ const markdown = new Converter({
 });
 
 pluginRouter.get(
-  '/:plugin',
+  '/plugin/:plugin',
   wrap(async (req, res, next) => {
     const plugin = ROOT_CONTAINER.getPluginByID(req.params['plugin']);
     if (!plugin) return next();
@@ -54,7 +54,7 @@ pluginRouter.get(
 );
 
 pluginRouter.get(
-  '/:plugin/profiles',
+  '/plugin/:plugin/profiles',
   adminMiddleware,
   wrap(async (req, res, next) => {
     const plugin = ROOT_CONTAINER.getPluginByID(req.params['plugin']);
@@ -102,7 +102,7 @@ pluginRouter.get(
 );
 
 pluginRouter.get(
-  '/:plugin/profile',
+  '/plugin/:plugin/profile',
   wrap(async (req, res, next) => {
     const plugin = ROOT_CONTAINER.getPluginByID(req.params['plugin']);
     const refid = req.query['refid'];
@@ -139,7 +139,7 @@ pluginRouter.get(
 );
 
 pluginRouter.get(
-  '/:plugin/static/*',
+  '/plugin/:plugin/static/*',
   wrap(async (req, res, next) => {
     const dataPath = req.params[0];
     if (dataPath.startsWith('.')) return next();
@@ -153,7 +153,7 @@ pluginRouter.get(
 );
 
 pluginRouter.get(
-  '/:plugin/:page',
+  '/plugin/:plugin/:page',
   wrap(async (req, res, next) => {
     const plugin = ROOT_CONTAINER.getPluginByID(req.params['plugin']);
     const pageName = req.params['page'];
@@ -162,6 +162,30 @@ pluginRouter.get(
     const ADMIN_ONLY_PAGES = ['startup flags', 'unlock events', 'update webui assets', 'weekly score attack'];
     if (ADMIN_ONLY_PAGES.includes(pageName) && !req.session.user!.admin) {
       return res.redirect('/');
+    }
+
+    // --- Smart Redirector for Core Routes ---
+    // We only redirect if the plugin DOES NOT provide its own version of these pages.
+    const coreRoutes = ['my-profile', 'profiles', 'leaderboard', 'account', 'users', 'about'];
+    const isCoreRoute = coreRoutes.includes(pageName.toLowerCase());
+    const isPluginPage = plugin.Pages.includes(pageName.toLowerCase());
+
+    // Special Case: Auto-resolve RefID for game profiles
+    if (pageName.toLowerCase() === 'my-profile' || (pageName.toLowerCase() === 'profile' && !req.query['refid'])) {
+        const { FindCard } = require('../../utils/EamuseIO');
+        const cardNumber = req.session.user?.cardNumber;
+        if (cardNumber) {
+            const card = await FindCard(cardNumber);
+            if (card && card.__refid) {
+                console.log(`[PluginRedirector] Auto-resolving RefID for ${plugin.Identifier} -> ${card.__refid}`);
+                return res.redirect(`/plugin/${plugin.Identifier}/profile?refid=${card.__refid}`);
+            }
+        }
+    }
+
+    if (isCoreRoute && !isPluginPage) {
+        console.log(`[PluginRedirector] Correcting relative link for core page ${pageName} from plugin ${plugin.Identifier}`);
+        return res.redirect(`/${pageName}${req.url.includes('?') ? '?' + req.url.split('?')[1] : ''}`);
     }
 
     const content = await plugin.render(pageName, { query: req.query });

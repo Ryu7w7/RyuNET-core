@@ -1,0 +1,43 @@
+extends _layout.pug
+
+block content
+  section.section.is-main-section
+    .columns
+      .column.is-6.is-offset-3
+        .card
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-shield-lock-outline
+              | Authorize Application
+          .card-content
+            if error
+              .notification.is-danger.is-light
+                p #{error}
+            else
+              p
+                strong #{clientName}
+                |  is requesting access to your account.
+              if scopes && scopes.length
+                p.mt-3 This application is requesting the following permissions:
+                .content
+                  ul
+                    each s in scopes
+                      li
+                        span.icon.is-small
+                          i.mdi.mdi-check
+                        |  #{s}
+              form(method="post" action="/oauth/authorize")
+                input(type="hidden" name="client_id" value=clientId)
+                input(type="hidden" name="redirect_uri" value=redirectUri)
+                input(type="hidden" name="scope" value=scopes.join(' '))
+                input(type="hidden" name="state" value=state)
+                .buttons.is-right.mt-5
+                  button.button(type="submit" name="decision" value="deny")
+                    span.icon.is-small
+                      i.mdi.mdi-close
+                    span Deny
+                  button.button.is-link(type="submit" name="decision" value="approve")
+                    span.icon.is-small
+                      i.mdi.mdi-check
+                    span Authorize
