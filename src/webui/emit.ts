@@ -24,12 +24,14 @@ ajax.post(
   json({ limit: '50mb' }),
   async (req, res) => {
     if (!req.headers.referer) {
+      Logger.debug(`[Emit] 400 Bad Request: Missing Referer for event ${req.params.event}`);
       res.sendStatus(400);
       return;
     }
 
     const match = req.headers.referer.match(/\/plugin\/([^\/]*)(?:\/.*)*$/);
     if (!match) {
+      Logger.debug(`[Emit] 400 Bad Request: Invalid Referer (${req.headers.referer}) for event ${req.params.event}`);
       res.sendStatus(400);
       return;
     }
@@ -42,14 +44,34 @@ ajax.post(
 
     const event = req.params.event;
 
-    // Protect profile update events: only admin or profile owner
-    if (event === 'updateProfile' && req.body.refid) {
+    // Protect profile/score update events: only admin or profile owner
+    if ((event === 'updateProfile' || event === 'updateScore') && req.body.refid) {
       const isAdmin = req.session.user && req.session.user.admin;
       const isOwner = await emitUserOwnsProfile(req, req.body.refid);
       if (!isAdmin && !isOwner) {
         res.sendStatus(403);
         return;
       }
+    }
+
+    // Protect admin-only events
+    const ADMIN_ONLY_EVENTS = [
+      'nauticaApprove', 'nauticaRemove', 'nauticaNominationQueue',
+      'nauticaGetFeedback', 'nauticaSetTesting', 'nauticaReject',
+      'nauticaDeletedList', 'nauticaReconvert', 'nauticaReconvertAll',
+      'manageEvents', 'manageStartupFlags', 'copyResourcesFromGame',
+    ];
+    if (ADMIN_ONLY_EVENTS.includes(event)) {
+      if (!req.session.user || !req.session.user.admin) {
+        res.sendStatus(403);
+        return;
+      }
+    }
+
+    // Inject authenticated username so handlers can trust user identity
+    if (req.session.user) {
+      req.body.__username = req.session.user.username;
+      req.body.__isAdmin = req.session.user.admin || false;
     }
 
     let sent = false;

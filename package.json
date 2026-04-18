@@ -29,7 +29,7 @@
     "@types/pug": "^2.0.4",
     "@types/showdown": "^1.9.3",
     "@types/sizeof": "^1.0.1",
-    "archiver": "^6.0.1",
+    "archiver": "^6.0.2",
     "argparse": "^1.0.10",
     "bcryptjs": "^3.0.3",
     "body-parser": "^1.19.0",

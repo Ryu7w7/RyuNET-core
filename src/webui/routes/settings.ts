@@ -107,16 +107,19 @@ settingsRouter.delete(
 
 // General setting update
 settingsRouter.post(
-  '*',
+  ['/', '/plugin/:plugin'],
   urlencoded({ extended: true, limit: '50mb' }),
-  wrap(async (req, res) => {
+  wrap(async (req, res, next) => {
+    // We don't want to intercept AJAX requests, only direct form posts.
+    if (!req.is('application/x-www-form-urlencoded')) return next();
+
     if (isEmpty(req.body)) return res.sendStatus(400);
 
     let plugin: string = null;
     if (req.path === '/') {
       plugin = 'core';
     } else if (req.path.startsWith('/plugin/')) {
-      plugin = path.basename(req.path);
+      plugin = req.params['plugin'];
     }
 
     if (plugin == null) return res.status(400).send('Invalid settings path');
