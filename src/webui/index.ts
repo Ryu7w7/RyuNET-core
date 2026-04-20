@@ -17,6 +17,8 @@ import { settingsRouter } from './routes/settings';
 import { pluginRouter } from './routes/plugin';
 import { oauthRouter } from './routes/oauth';
 import { nauticaRouter } from './routes/nautica';
+import { discordRouter } from './routes/discord';
+import { cabinetsRouter } from './routes/cabinets';
 
 // Shared
 import { authMiddleware, bearerTokenMiddleware } from './shared/middleware';
@@ -70,6 +72,7 @@ webui.use(authRouter);
 webui.use('/tachi', tachiRouter); // Some Tachi routes are public or handled internally
 webui.use(oauthRouter); // OAuth Provider endpoints
 webui.use(nauticaRouter); // SDVX Custom Charts / Drive endpoints
+webui.use(discordRouter); // Discord login / linking
 
 // --- Protected Routes ---
 webui.use(bearerTokenMiddleware);
@@ -80,6 +83,7 @@ webui.use(profileRouter);
 webui.use(migrationRouter);
 webui.use(leaderboardRouter);
 webui.use(pluginRouter);
+webui.use(cabinetsRouter);
 
 // Dashboard and general settings (handles catch-all POST)
 webui.use(settingsRouter);

@@ -165,6 +165,27 @@ function CoreConfig() {
     default: '',
     desc: 'OAuth Client Secret for Kamaitachi integration',
   });
+
+  CONFIG_MAP['core'].set('discord_client_id', {
+    name: 'Discord Client ID',
+    type: 'string',
+    default: '',
+    desc: 'OAuth Client ID for Discord login integration',
+  });
+
+  CONFIG_MAP['core'].set('discord_client_secret', {
+    name: 'Discord Client Secret',
+    type: 'string',
+    default: '',
+    desc: 'OAuth Client Secret for Discord login integration',
+  });
+
+  CONFIG_MAP['core'].set('require_pcbid_auth', {
+    name: 'Require PCBID Auth',
+    type: 'boolean',
+    default: true,
+    desc: 'Reject e-amusement connections from unknown/unregistered PCBIDs (Cabinets)',
+  });
 }
 CoreConfig();
 

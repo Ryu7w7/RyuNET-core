@@ -54,6 +54,12 @@ html
                   i.mdi.mdi-account-plus
                 span Sign Up
           hr
+          if config.discord_client_id
+            .has-text-centered.mb-4
+              a.button.is-link.is-fullwidth(href="/auth/discord?action=login" style="background-color: #5865F2;")
+                span.icon
+                  i.mdi.mdi-discord
+                span Sign up / Log in with Discord
           .has-text-centered
             p.is-size-7.has-text-grey Already have an account?
               |

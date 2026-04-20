@@ -15,6 +15,8 @@ import { Logger } from '../utils/Logger';
 import { EamuseSend } from '../eamuse/EamuseSend';
 import { dataToXML } from '../utils/KBinJSON';
 import { EamuseRootRouter } from '../eamuse/EamuseRootRouter';
+import { GetCabinetByPCBID, UpdateCabinetLastSeen } from '../utils/EamuseIO';
+import { CONFIG } from '../utils/ArgConfig';
 
 // const ACCEPT_AGENTS = ['EAMUSE.XRPC/1.0', 'EAMUSE.Httpac/1.0'];
 
@@ -28,6 +30,7 @@ export interface EABody {
   kencoded: boolean;
   encoding: KBinEncoding;
   model: string;
+  pcbid?: string;
 }
 
 export interface EamuseInfo {
@@ -36,6 +39,7 @@ export interface EamuseInfo {
   method: string;
   model: string;
   ip?: string;
+  pcbid?: string;
 }
 
 export const EamuseMiddleware: RequestHandler = async (req, res, next) => {
@@ -71,7 +75,7 @@ export const EamuseMiddleware: RequestHandler = async (req, res, next) => {
       return;
     }
 
-    let body = data;
+    let body: any = data;
     let encrypted = false;
 
     if (eamuseInfo) {
@@ -130,6 +134,7 @@ export const EamuseMiddleware: RequestHandler = async (req, res, next) => {
     const eaMethods: string[] = moduleObj.map(x => get(x, `@attr.method`));
     const eaMethod = eaMethods.join('.');
     const model = get(xml, 'call.@attr.model');
+    const pcbid = get(xml, 'call.@attr.srcid') || get(xml, 'call.@attr.pcbid');
 
     if (!(process as any).pkg) {
       Logger.debug(`${eaModule}.${eaMethod}\n${dataToXML(xml, false)}`);
@@ -145,6 +150,7 @@ export const EamuseMiddleware: RequestHandler = async (req, res, next) => {
       encoding,
       kencoded,
       model,
+      pcbid,
     } as EABody;
     next();
   });
@@ -168,8 +174,23 @@ export const EamuseRoute = (router: EamuseRootRouter): RequestHandler => {
       module: body.module, 
       method: body.method, 
       model: body.model,
+      pcbid: body.pcbid,
       ip: req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : (req.ip?.includes(':') ? '127.0.0.1' : req.ip)
     };
+
+    if (body.pcbid) {
+      const cabinet = await GetCabinetByPCBID(body.pcbid);
+      if (CONFIG.require_pcbid_auth) {
+        if (!cabinet) {
+          Logger.warn(`Rejected connection from unregistered PCBID: ${body.pcbid} (Game: ${gameCode})`);
+          res.sendStatus(403);
+          return;
+        }
+      }
+      if (cabinet) {
+        UpdateCabinetLastSeen(body.pcbid);
+      }
+    }
 
     // HACK: give facility ip
     if (body.module == 'facility' && body.method == 'get') {

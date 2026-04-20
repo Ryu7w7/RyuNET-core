@@ -510,7 +510,9 @@ export async function CreateUserAccount(
   password: string,
   cardNumber: string,
   admin: boolean = false,
-  countryCode: string | null = null
+  countryCode: string | null = null,
+  discordId: string | null = null,
+  discordUsername: string | null = null
 ) {
   try {
     const existing = await CoreDB.findOneAsync<any>({ __s: 'user_account', username });
@@ -524,6 +526,8 @@ export async function CreateUserAccount(
       cardNumber,
       admin,
       countryCode,
+      discordId,
+      discordUsername,
     });
   } catch (err) {
     Logger.error(err);
@@ -546,13 +550,16 @@ export async function AuthenticateUser(username: string, password: string) {
 
 export async function UpdateUserAccount(
   username: string,
-  update: { username?: string; password?: string; countryCode?: string | null }
+  update: { username?: string; password?: string; countryCode?: string | null; cardNumber?: string; discordId?: string; discordUsername?: string }
 ) {
   try {
     const setFields: any = {};
     if (update.username) setFields.username = update.username;
     if (update.password) setFields.password = await bcrypt.hash(update.password, 10);
     if (update.countryCode !== undefined) setFields.countryCode = update.countryCode;
+    if (update.cardNumber !== undefined) setFields.cardNumber = update.cardNumber;
+    if (update.discordId !== undefined) setFields.discordId = update.discordId;
+    if (update.discordUsername !== undefined) setFields.discordUsername = update.discordUsername;
 
     await CoreDB.updateAsync({ __s: 'user_account', username }, { $set: setFields });
     return true;
@@ -596,6 +603,76 @@ export async function FindUserByCardNumber(cardNumber: string) {
   } catch (err) {
     Logger.error(err);
     return null;
+  }
+}
+
+export async function FindUserByDiscordId(discordId: string) {
+  try {
+    return await CoreDB.findOneAsync<any>({ __s: 'user_account', discordId });
+  } catch (err) {
+    Logger.error(err);
+    return null;
+  }
+}
+
+// =========================================
+//                Cabinets
+// =========================================
+
+export async function CreateCabinet(username: string, name: string): Promise<string | null> {
+  try {
+    const pcbid = '01C' + randomBytes(8).toString('hex').toUpperCase() + '0';
+    await CoreDB.insertAsync({
+      __s: 'cabinet',
+      pcbid,
+      username,
+      name,
+      lastSeen: 0,
+      globalPort: 5700,
+      createdAt: Date.now(),
+    });
+    return pcbid;
+  } catch (err) {
+    Logger.error(err);
+    return null;
+  }
+}
+
+export async function GetCabinetsByUser(username: string): Promise<any[]> {
+  try {
+    return await CoreDB.findAsync<any>({ __s: 'cabinet', username }).sort({ createdAt: 1 }).execAsync();
+  } catch (err) {
+    Logger.error(err);
+    return [];
+  }
+}
+
+export async function GetCabinetByPCBID(pcbid: string): Promise<any | null> {
+  try {
+    return await CoreDB.findOneAsync<any>({ __s: 'cabinet', pcbid });
+  } catch (err) {
+    Logger.error(err);
+    return null;
+  }
+}
+
+export async function DeleteCabinet(pcbid: string, username: string): Promise<boolean> {
+  try {
+    await CoreDB.removeAsync({ __s: 'cabinet', pcbid, username }, {});
+    return true;
+  } catch (err) {
+    Logger.error(err);
+    return false;
+  }
+}
+
+export async function UpdateCabinetLastSeen(pcbid: string): Promise<boolean> {
+  try {
+    await CoreDB.updateAsync({ __s: 'cabinet', pcbid }, { $set: { lastSeen: Date.now() } });
+    return true;
+  } catch (err) {
+    Logger.error(err);
+    return false;
   }
 }
 

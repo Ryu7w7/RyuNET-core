@@ -1,0 +1,63 @@
+extends _layout.pug
+
+block content
+  section.section.is-main-section
+    if error
+      .notification.is-danger.is-light #{error}
+    if success
+      .notification.is-success.is-light #{success}
+
+    .columns
+      .column.is-12
+        .card.mb-6
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-gamepad-variant
+              | Cabinets Management
+          .card-content
+            .content
+              p A Cabinet represents an arcade machine or game client. To play online with RyuNET, your game client must send a PCBID that is registered here. 
+              if cabinets.length < 10 || admin
+                form(method="post" action="/cabinets/new")
+                  .field.has-addons
+                    .control.is-expanded
+                      input.input(type="text" name="name" placeholder="Cabinet Name (e.g., SDVX Local)" required)
+                    .control
+                      button.button.is-info(type="submit")
+                        span.icon
+                          i.mdi.mdi-plus
+                        | Add New Cabinet
+              else
+                p.has-text-danger You have reached the maximum limit of 10 cabinets.
+            
+            .table-container.mt-4
+              table.table.is-fullwidth.is-striped.is-hoverable
+                thead
+                  tr
+                    th Cabinet Name
+                    th PCBID (srcid)
+                    th Last Seen
+                    th Actions
+                tbody
+                  if cabinets.length === 0
+                    tr
+                      td.has-text-centered(colspan="4") No cabinets found. 
+                  else
+                    each cab in cabinets
+                      tr
+                        td #{cab.name}
+                        td
+                          code #{cab.pcbid}
+                        td
+                          if cab.lastSeen === 0
+                            span.has-text-grey Never
+                          else
+                            - var date = new Date(cab.lastSeen)
+                            | #{date.toLocaleString()}
+                        td
+                          form(method="post" action="/cabinets/delete" onsubmit="return confirm('Are you sure you want to delete this cabinet?');")
+                            input(type="hidden" name="pcbid" value=cab.pcbid)
+                            button.button.is-small.is-danger.is-light(type="submit" data-tooltip="Delete Cabinet")
+                              span.icon.is-small
+                                i.mdi.mdi-trash-can

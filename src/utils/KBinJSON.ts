@@ -368,10 +368,8 @@ export function isKBin(input: Buffer): boolean {
   );
 }
 
-export function unpackSixbit(byteBuf: ReadBuffer | Buffer): string {
-  if (byteBuf instanceof Buffer) {
-    byteBuf = new ReadBuffer(byteBuf);
-  }
+export function unpackSixbit(input: ReadBuffer | Buffer): string {
+  const byteBuf: ReadBuffer = Buffer.isBuffer(input) ? new ReadBuffer(input) : input;
   const length = Number(byteBuf.get('u8'));
 
   let value = 0;

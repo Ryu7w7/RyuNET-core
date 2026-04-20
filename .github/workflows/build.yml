@@ -21,7 +21,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: core-artifact-linux
-          path: build/*.zip
+          path: build/asphyxia-core*
   build-win:
     runs-on: windows-latest
     steps:
@@ -35,7 +35,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: core-artifact-windows
-          path: build/*.zip
+          path: build/asphyxia-core*
   build-arm:
     runs-on: ubuntu-24.04
     steps:
@@ -61,7 +61,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: core-artifact-arm64
-          path: build/*.zip
+          path: build/asphyxia-core*
   release:
     name: Create Release
     needs: [build-linux, build-win, build-arm]
@@ -90,7 +90,7 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: ./artifacts/*.zip
+          files: ./artifacts/**/asphyxia-core*
           generate_release_notes: true
           draft: false
           prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') || contains(github.ref, '-rc') }}

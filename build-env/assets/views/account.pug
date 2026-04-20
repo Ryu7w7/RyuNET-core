@@ -40,6 +40,12 @@ block content
                       span.icon.is-small.is-left
                         i.mdi.mdi-lock-check
               .field.is-grouped.is-grouped-right
+                .control
+                  if config.discord_client_id
+                    a.button.is-link(href="/auth/discord?action=link" style="background-color: #5865F2;")
+                      span.icon.is-small
+                        i.mdi.mdi-discord
+                      span Link Discord
                 .control.is-expanded
                   if formMessage
                     if formMessage.danger

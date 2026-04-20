@@ -6,13 +6,13 @@ import { Logger } from '../utils/Logger';
 import { PLUGIN_PATH, APIFindOne, APIFind } from '../utils/EamuseIO';
 import path from 'path';
 import { readdirSync, readFileSync } from 'fs';
-import { FindCard, CreateProfile, CreateCard, BindProfile } from '../utils/EamuseIO';
+import { FindCard, CreateProfile, CreateCard, BindProfile, GetCabinetByPCBID, FindUserByUsername, UpdateUserAccount } from '../utils/EamuseIO';
 
 import { compile } from 'pug';
 import { CONFIG } from '../utils/ArgConfig';
 import { nfc2card } from '../utils/CardCipher';
 
-async function cardSanitizer(gameCode: string, str: string, refMap: any): Promise<string> {
+async function cardSanitizer(gameCode: string, pcbid: string | undefined, str: string, refMap: any): Promise<string> {
   const regex =
     /(^|[^A-Za-z0-9])((?:01[A-Fa-f0-9]{14})|(?:E004[A-Fa-f0-9]{12}))($|[^A-Za-z0-9=\-_,+\/])/g;
   const regexI =
@@ -38,6 +38,18 @@ async function cardSanitizer(gameCode: string, str: string, refMap: any): Promis
         const newCard = await CreateCard(cid, newProfile.__refid);
         if (!newCard) return null;
         refMap[cid] = `${newCard.__refid}|${did}`;
+
+        if (pcbid) {
+          const cabinet = await GetCabinetByPCBID(pcbid);
+          if (cabinet && cabinet.username) {
+            const user = await FindUserByUsername(cabinet.username);
+            if (user && (!user.cardNumber || user.cardNumber.trim() === '')) {
+              await UpdateUserAccount(user.username, { cardNumber: cid });
+              if (newCard.__refid) await BindProfile(newCard.__refid, gameCode);
+              Logger.info(`Automatically bound new card ${cid} to user ${user.username} via cabinet ${pcbid}`);
+            }
+          }
+        }
       } else {
         refMap[cid] = `${card.__refid}|${did}`;
         await BindProfile(card.__refid, gameCode);
@@ -52,19 +64,19 @@ async function cardSanitizer(gameCode: string, str: string, refMap: any): Promis
   });
 }
 
-async function sanitization(gameCode: string, data: any, refMap: any = {}) {
+async function sanitization(gameCode: string, pcbid: string | undefined, data: any, refMap: any = {}) {
   if (typeof data !== 'object') return undefined;
 
   if (Array.isArray(data)) {
     for (const element of data) {
-      await sanitization(gameCode, element, refMap);
+      await sanitization(gameCode, pcbid, element, refMap);
     }
   } else {
     for (const prop in data) {
       if (prop == '@attr') {
         for (const attr in data[prop]) {
           if (typeof data[prop][attr] == 'string') {
-            const refid = await cardSanitizer(gameCode, data[prop][attr], refMap);
+            const refid = await cardSanitizer(gameCode, pcbid, data[prop][attr], refMap);
             if (refid == null) return null;
             data['@attr'][attr] = refid;
           }
@@ -72,12 +84,12 @@ async function sanitization(gameCode: string, data: any, refMap: any = {}) {
       } else if (prop == '@content') {
         const content = data['@content'];
         if (typeof content == 'string') {
-          const refid = await cardSanitizer(gameCode, content, refMap);
+          const refid = await cardSanitizer(gameCode, pcbid, content, refMap);
           if (refid == null) return null;
           data['@content'] = refid;
         }
       } else {
-        await sanitization(gameCode, data[prop], refMap);
+        await sanitization(gameCode, pcbid, data[prop], refMap);
       }
     }
   }
@@ -305,7 +317,7 @@ export class EamusePlugin {
   ): Promise<boolean> {
     let handler = this.routes[`${moduleName}.${method}`];
 
-    const sanitized = await sanitization(info.gameCode, data);
+    const sanitized = await sanitization(info.gameCode, info.pcbid, data);
     if (sanitized == null) {
       return false;
     }
