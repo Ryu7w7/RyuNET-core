@@ -26,6 +26,13 @@ enable_paseli=true
 webui_on_startup=true
 server_name=Asphyxia Core
 server_tag=CORE
+
+; Optional Discord OAuth2 configuration
+discord_client_id=
+discord_client_secret=
+
+; Security
+require_pcbid_auth=true
 ```
 
 | Option | Description |
@@ -40,6 +47,9 @@ server_tag=CORE
 | `webui_on_startup` | Open the WebUI in browser on startup (`true`/`false`) |
 | `server_name` | Display name of the server |
 | `server_tag` | Client tag shown in-game |
+| `discord_client_id` | OAuth2 Client ID from Discord Developer Portal |
+| `discord_client_secret` | OAuth2 Client Secret for Discord OAuth2 |
+| `require_pcbid_auth` | If true, only registered PCBIDs can connect to e-amusement services |
 
 ### 2. Change the default admin password
 
@@ -60,6 +70,11 @@ Log in to the WebUI and change the admin password immediately. If your server is
 - Admin role with user management
 - Access control (profile ownership, admin-only pages)
 - Server name and client tag configurable via `config.ini`
+- **Discord OAuth2**: Fully integrated login and account linking.
+- **Cabinet (PCBID) Management**: System for registering and authorizing specific arcade hardware.
+- **Strict PCBID Security**: Optional enforcement to reject connections from unauthorized hardware.
+- **Automatic Card Binding**: If a user logs in from a registered Cabinet without a card, their first used card is automatically bound to their account.
+- **e-amusement cloud (Konaste) support**: Native protocol support for official PC/Cloud game clients.
 
 ### Core changes for the SDVX plugin
 These are server-side changes in this repository that support the [forked SDVX plugin](https://github.com/Beafowl/asphyxia_plugins/tree/kfc).
@@ -71,3 +86,5 @@ These are server-side changes in this repository that support the [forked SDVX p
 ### WebUI
 - Removed shutdown/process controls from navbar
 - Hidden data delete buttons for non-admin users
+- New "Cabinets" section for users to manage their registered hardware.
+- Discord login/linking buttons on auth and account pages.
