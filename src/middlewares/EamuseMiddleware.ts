@@ -14,6 +14,7 @@ import LzKN from '../utils/LzKN';
 import { Logger } from '../utils/Logger';
 import { EamuseSend } from '../eamuse/EamuseSend';
 import { dataToXML } from '../utils/KBinJSON';
+import { EaCloud } from '../utils/EaCloud';
 import { EamuseRootRouter } from '../eamuse/EamuseRootRouter';
 import { GetCabinetByPCBID, UpdateCabinetLastSeen } from '../utils/EamuseIO';
 import { CONFIG } from '../utils/ArgConfig';
@@ -31,6 +32,11 @@ export interface EABody {
   encoding: KBinEncoding;
   model: string;
   pcbid?: string;
+  eaCloud?: {
+    protocolVersion: string;
+    clientVersion?: string;
+    token?: string;
+  };
 }
 
 export interface EamuseInfo {
@@ -77,12 +83,44 @@ export const EamuseMiddleware: RequestHandler = async (req, res, next) => {
 
     let body: any = data;
     let encrypted = false;
+    let eaCloudPayload: EABody['eaCloud'] = undefined;
 
-    if (eamuseInfo) {
-      encrypted = true;
-      const key = new KonmaiEncrypt(eamuseInfo.toString());
-      const decrypted = key.encrypt(body);
-      body = decrypted;
+    const contentType = req.headers['content-type'] || '';
+    if (contentType.includes('application/x-www-form-urlencoded')) {
+      const dataStr = data.toString('utf-8');
+      const params = new URLSearchParams(dataStr);
+      const protocolVersion = params.get('protocol_version');
+      const requestSignature = params.get('signature');
+      const requestBase64 = params.get('request');
+
+      if (protocolVersion && requestSignature && requestBase64) {
+        eaCloudPayload = {
+          protocolVersion,
+          clientVersion: params.get('client_version') || undefined,
+          token: params.get('p2d_token') || undefined,
+        };
+
+        const validBase64 = EaCloud.convertValidBase64(requestBase64);
+        const requestBuffer = Buffer.from(validBase64, 'base64');
+        
+        // Validate signature
+        const timeMin = EaCloud.validateRequestSignature(requestBuffer, requestSignature, protocolVersion);
+        if (timeMin === -1) {
+          Logger.warn(`Invalid EaCloud signature from ${agent}`);
+          res.sendStatus(400); 
+          return;
+        }
+
+        body = requestBuffer;
+        compress = 'lz77';
+      }
+    } else {
+      if (eamuseInfo) {
+        encrypted = true;
+        const key = new KonmaiEncrypt(eamuseInfo.toString());
+        const decrypted = key.encrypt(body);
+        body = decrypted;
+      }
     }
 
     if (body && compress === 'lz77') {
@@ -151,6 +189,7 @@ export const EamuseMiddleware: RequestHandler = async (req, res, next) => {
       kencoded,
       model,
       pcbid,
+      eaCloud: eaCloudPayload,
     } as EABody;
     next();
   });

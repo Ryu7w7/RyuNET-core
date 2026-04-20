@@ -4,6 +4,7 @@ import { kencode, xmlToData, KBinEncoding, dataToXMLBuffer } from '../utils/KBin
 import { KonmaiEncrypt } from '../utils/KonmaiEncrypt';
 import LzKN from '../utils/LzKN';
 import { PLUGIN_PATH } from '../utils/EamuseIO';
+import { EaCloud } from '../utils/EaCloud';
 import { Logger } from '../utils/Logger';
 
 import { render as ejs, compile as ejsCompile } from 'ejs';
@@ -115,11 +116,30 @@ export class EamuseSend {
       data = key.encrypt(data);
     }
 
+    let finalData = data;
+    
+    if (this.body.eaCloud) {
+      const proto = this.body.eaCloud.protocolVersion;
+      const responseKey = EaCloud.responseKeyFromProtocolVersion(proto);
+      
+      if (responseKey) {
+        const timeMin = Math.floor(Date.now() / 1000 / 60);
+        const signature = EaCloud.generateResponseSignature(data, timeMin, responseKey);
+        
+        finalData = Buffer.concat([
+          Buffer.from(proto, 'utf-8'),
+          signature,
+          data
+        ]);
+      }
+      this.res.setHeader('Content-Type', 'application/binary');
+    }
+
     if (plugin) {
       this.res.setHeader('X-CORE-Plugin', plugin);
     }
 
-    this.res.send(data);
+    this.res.send(finalData);
     this.sent = true;
   }
 
