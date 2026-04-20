@@ -44,6 +44,11 @@ webui.use(
   })
 );
 webui.use(cookies());
+webui.use((req, res, next) => {
+  const { CONFIG } = require('../utils/ArgConfig');
+  res.locals.config = CONFIG;
+  next();
+});
 
 // Redirect Logging (Useful for debugging production loops)
 webui.use((req, res, next) => {
