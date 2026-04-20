@@ -85,11 +85,11 @@ leaderboardRouter.get('/leaderboard', wrap(async (req, res, next) => {
   const perPage = 20;
   const page = clampInt(req.query.page, 1, 1, 999999);
   const searchQuery = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+  const selectedCountry = typeof req.query.country === 'string' ? req.query.country.toLowerCase().trim() : '';
 
   let rows = getCachedResult(cacheKey);
 
   if (!rows) {
-    // Heavy calculation if not cached
     if (game === 'sdvx') {
       const plugin = ROOT_CONTAINER.getPluginByID('sdvx@asphyxia');
       if (!plugin) return next();
@@ -184,20 +184,50 @@ leaderboardRouter.get('/leaderboard', wrap(async (req, res, next) => {
 
   if (!rows) return next();
 
-  // Filtering and Pagination (Always fresh based on request)
-  let filteredRows = rows;
-  if (searchQuery) {
-    const sq = searchQuery.toLowerCase();
-    filteredRows = rows.filter((r: any) => r.name && r.name.toLowerCase().includes(sq));
+  // Extract available unique countries from all rows
+  function getFlagEmoji(countryCode: string) {
+    if (!countryCode || countryCode === 'xx') return '🌎';
+    const codePoints = countryCode
+      .toUpperCase()
+      .split('')
+      .map(char => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
   }
 
+  const availableCountries = Array.from(new Set<string>(rows.map((r: any) => r.countryCode || 'xx')))
+    .sort()
+    .map(code => ({
+      code,
+      emoji: getFlagEmoji(code),
+    }));
+
+  // Filtering
+  let filteredRows = rows.map((r: any) => ({ ...r })); // Clone to avoid cache corruption
+  if (selectedCountry && selectedCountry !== 'all' && selectedCountry !== 'xx') {
+    filteredRows = filteredRows.filter((r: any) => (r.countryCode || 'xx') === selectedCountry);
+  }
+  if (searchQuery) {
+    const sq = searchQuery.toLowerCase();
+    filteredRows = filteredRows.filter((r: any) => r.name && r.name.toLowerCase().includes(sq));
+  }
+
+  // Recalculate ranks for the filtered view
+  filteredRows.forEach((r: any, idx: number) => {
+    r.localRank = idx + 1;
+  });
+
   const myRefid = await getLoggedRefid(req);
-  let myRank = null, myRow = null;
+  let myRank = null, myRow = null, myLocalRank = null;
   if (myRefid) {
     const idx = rows.findIndex((r: any) => String(r.refid) === String(myRefid));
     if (idx >= 0) {
       myRank = idx + 1;
       myRow = rows[idx];
+      
+      const lIdx = filteredRows.findIndex((r: any) => String(r.refid) === String(myRefid));
+      if (lIdx >= 0) {
+        myLocalRank = lIdx + 1;
+      }
     }
   }
 
@@ -208,6 +238,7 @@ leaderboardRouter.get('/leaderboard', wrap(async (req, res, next) => {
 
   return res.render('leaderboard', data(req, 'Leaderboard', 'core', {
     game, style, rows: pageRows, totalPlayers, globalTotalPlayers: rows.length,
-    searchQuery, totalPages, page: safePage, perPage, myRank, myRow,
+    searchQuery, selectedCountry, availableCountries, totalPages, page: safePage, perPage, myRank, myRow, myLocalRank,
+    getFlagEmoji, // Also passing helper to template if needed for the current selected country
   }));
 }));

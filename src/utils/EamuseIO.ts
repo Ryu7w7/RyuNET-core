@@ -647,6 +647,15 @@ export async function GetCabinetsByUser(username: string): Promise<any[]> {
   }
 }
 
+export async function GetAllCabinets(): Promise<any[]> {
+  try {
+    return await CoreDB.findAsync<any>({ __s: 'cabinet' }).sort({ createdAt: 1 }).execAsync();
+  } catch (err) {
+    Logger.error(err);
+    return [];
+  }
+}
+
 export async function GetCabinetByPCBID(pcbid: string): Promise<any | null> {
   try {
     return await CoreDB.findOneAsync<any>({ __s: 'cabinet', pcbid });
@@ -669,6 +678,16 @@ export async function DeleteCabinet(pcbid: string, username: string): Promise<bo
 export async function UpdateCabinetLastSeen(pcbid: string): Promise<boolean> {
   try {
     await CoreDB.updateAsync({ __s: 'cabinet', pcbid }, { $set: { lastSeen: Date.now() } });
+    return true;
+  } catch (err) {
+    Logger.error(err);
+    return false;
+  }
+}
+
+export async function UpdateCabinet(pcbid: string, update: any): Promise<boolean> {
+  try {
+    await CoreDB.updateAsync({ __s: 'cabinet', pcbid }, { $set: update });
     return true;
   } catch (err) {
     Logger.error(err);
