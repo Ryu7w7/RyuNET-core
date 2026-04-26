@@ -8,7 +8,7 @@ export const wrap =
       (fn as any)(...args).catch(args[2]);
 
 // Authentication middleware to ensure only logged-in users can access certain routes
-export const authMiddleware: RequestHandler = (req, res, next) => {
+export const authMiddleware: RequestHandler = wrap(async (req, res, next) => {
   const path = req.path.toLowerCase();
   // Public/Asset Whitelist
   if (
@@ -21,9 +21,27 @@ export const authMiddleware: RequestHandler = (req, res, next) => {
   ) return next();
 
   if (!req.session.user) return res.redirect('/login');
-  if (!req.session.user) return res.redirect('/login');
+  
+  // Refresh user data from DB to get real-time updates (e.g. from Discord bot linking)
+  const { FindUserByUsername } = require('../../utils/EamuseIO');
+  const dbUser = await FindUserByUsername(req.session.user.username);
+  
+  if (dbUser) {
+    // Preserve any existing session properties while updating core fields from DB
+    req.session.user = {
+      ...req.session.user,
+      ...dbUser,
+      username: dbUser.username,
+      cardNumber: dbUser.cardNumber,
+      admin: dbUser.admin || false,
+    };
+  } else {
+    // User deleted in DB while session is active
+    return res.redirect('/logout');
+  }
+
   next();
-};
+});
 
 // Bearer Token middleware to authorize API or OAuth integrations seamlessly
 export const bearerTokenMiddleware: RequestHandler = async (req, res, next) => {

@@ -213,3 +213,136 @@ migrationRouter.get(
     await archive.finalize();
   })
 );
+
+// IIDX Score migration
+migrationRouter.post(
+  '/migrate/iidx/import-scores',
+  json({ limit: '50mb' }),
+  wrap(async (req, res) => {
+    const { refid, scores } = req.body;
+    if (!refid || !scores || !Array.isArray(scores)) {
+      return res.status(400).json({ success: false, description: 'Missing data' });
+    }
+
+    const isAdmin = req.session.user!.admin;
+    const isOwner = await userOwnsProfile(req, refid);
+    if (!isAdmin && !isOwner) return res.sendStatus(403);
+
+    const plugin = { identifier: 'iidx@asphyxia', core: false };
+    let inserted = 0;
+    let updated = 0;
+    let mergedCharts = 0;
+    let skipped = 0;
+
+    for (const s of scores) {
+      try {
+        const mid = s.mid || s.music_id;
+        if (mid === undefined) continue;
+
+        const existing = await APIFind(plugin, refid, { collection: 'score', mid });
+        if (existing?.length > 0) {
+          const ex = existing[0];
+          const update: any = {};
+          let hasChange = false;
+
+          // IIDX uses arrays for 10 charts (SP/DP * difficulties)
+          const keys = ['pgArray', 'gArray', 'mArray', 'cArray', 'rArray', 'esArray', 'optArray', 'opt2Array'];
+          for (const key of keys) {
+            if (s[key] && Array.isArray(s[key])) {
+              if (!ex[key]) {
+                update[key] = s[key];
+                hasChange = true;
+              } else {
+                const merged = [...ex[key]];
+                let chartChanged = false;
+                for (let i = 0; i < 10; i++) {
+                  // For EX Score (esArray)
+                  if (key === 'esArray') {
+                    if (typeof s[key][i] === 'number' && s[key][i] > (merged[i] || 0)) {
+                      merged[i] = s[key][i];
+                      chartChanged = true;
+                      // Update related metrics if EX score improves
+                      if (s.pgArray?.[i] !== undefined) ex.pgArray[i] = s.pgArray[i];
+                      if (s.gArray?.[i] !== undefined) ex.gArray[i] = s.gArray[i];
+                    }
+                  }
+                  // For Clear Lamp (cArray)
+                  else if (key === 'cArray') {
+                    if (typeof s[key][i] === 'number' && s[key][i] > (merged[i] || 0)) {
+                      merged[i] = s[key][i];
+                      chartChanged = true;
+                    }
+                  }
+                  // For other arrays, only fill if missing (primitive merge)
+                  else {
+                    if (merged[i] === undefined || merged[i] === -1 || merged[i] === 0) {
+                      if (s[key][i] !== undefined && s[key][i] !== -1 && s[key][i] !== 0) {
+                        merged[i] = s[key][i];
+                        chartChanged = true;
+                      }
+                    }
+                  }
+                }
+                if (chartChanged) {
+                  update[key] = merged;
+                  hasChange = true;
+                  mergedCharts++;
+                }
+              }
+            }
+          }
+
+          if (hasChange) {
+            await APIUpdate(plugin, refid, { collection: 'score', mid }, { $set: update });
+            updated++;
+          } else {
+            skipped++;
+          }
+        } else {
+          // New song record
+          await APIInsert(plugin, refid, {
+            collection: 'score',
+            ...s,
+            _id: undefined, // Ensure we don't carry over NeDB internal IDs
+            __refid: refid,
+          });
+          inserted++;
+        }
+      } catch (err) {
+        Logger.error(`[IIDX Migrate] Error processing mid ${s.mid}: ${err}`);
+      }
+    }
+    res.json({ success: true, inserted, updated, mergedCharts, skipped });
+  })
+);
+
+migrationRouter.get(
+  '/migrate/iidx/export-savedata',
+  wrap(async (req, res) => {
+    const refid = req.query.refid as string;
+    if (!refid) return res.status(400).json({ success: false });
+
+    const isAdmin = req.session.user!.admin;
+    const isOwner = await userOwnsProfile(req, refid);
+    if (!isAdmin && !isOwner) return res.sendStatus(403);
+
+    const profile = await FindProfile(refid);
+    if (!profile) return res.status(404).json({ success: false });
+    const cards = await FindCardsByRefid(refid);
+
+    const coreLines = [nedbSerialize(profile), ...(cards || []).map((c: any) => nedbSerialize(c))].join('\n') + '\n';
+    const pluginDocs = await APIFind({ identifier: 'iidx@asphyxia', core: true }, refid, {});
+    const iidxLines = (pluginDocs || []).map((d: any) => nedbSerialize(d)).join('\n') + '\n';
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', err => {
+      if (!res.headersSent) res.status(500).json({ success: false });
+    });
+    res.set('Content-Type', 'application/zip');
+    res.set('Content-Disposition', 'attachment; filename="iidx_savedata.zip"');
+    archive.pipe(res);
+    archive.append(coreLines, { name: 'savedata/core.db' });
+    archive.append(iidxLines, { name: 'savedata/iidx@asphyxia.db' });
+    await archive.finalize();
+  })
+);
