@@ -45,8 +45,8 @@ block content
               span.tags
                 each code in gameCodes
                   span.tag.is-primary #{code}
-        if datafile.length
-          +files("Data Upload", datafile)
         if admin
+          if datafile.length
+            +files("Data Upload", datafile)
           if config.length
             +form("Plugin Settings", config)
