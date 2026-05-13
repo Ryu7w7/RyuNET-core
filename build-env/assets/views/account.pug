@@ -52,11 +52,10 @@ block content
                 .control
                   if config.discord_client_id
                     if fullUser && fullUser.discordId
-                      form(method="post" action="/account/unlink-discord" style="display: inline-block; margin-right: 10px;" onsubmit="return confirm('Are you sure you want to unlink your Discord account?');")
-                        button.button.is-danger(type="submit")
-                          span.icon.is-small
-                            i.mdi.mdi-discord
-                          span Unlink Discord
+                      button.button.is-danger(type="submit" formaction="/account/unlink-discord" onclick="return confirm('Are you sure you want to unlink your Discord account?');" style="margin-right: 10px;")
+                        span.icon.is-small
+                          i.mdi.mdi-discord
+                        span Unlink Discord
                     else
                       a.button.is-link(href="/auth/discord?action=link" style="background-color: #5865F2;")
                         span.icon.is-small
