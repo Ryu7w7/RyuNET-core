@@ -20,7 +20,20 @@ block content
                 span.tag.is-info.is-medium Slots: #{cabinetCount} / 10
           .card-content
             .content
-              p A Cabinet represents an arcade machine or game client. To play online with RyuNET, your game client must send a PCBID that is registered here. 
+              article.message.is-info
+                .message-body
+                  p
+                    strong Important:
+                    |  You only need 
+                    strong ONE PCBID
+                    |  for all your games. You do not need to generate a separate PCBID for each game. Use the same PCBID across all your game clients.
+                  p.mt-2
+                    strong EA Service URL:
+                    code#ea-service-url.ml-2 http://ea.ryu7w7.xyz/service/init
+                    button.button.is-small.is-light.ml-2(onclick="copyToClipboard('http://ea.ryu7w7.xyz/service/init', this)" data-tooltip="Copy URL")
+                      span.icon.is-small
+                        i.mdi.mdi-content-copy
+              p A Cabinet represents an arcade machine or game client. To play online with RyuNET, your game client must send a PCBID that is registered here.
               if cabinetCount < 10 || admin
                 form(method="post" action="/cabinets/new")
                   .field.has-addons
@@ -60,6 +73,9 @@ block content
                         td #{cab.name}
                         td
                           code #{cab.pcbid}
+                          button.button.is-small.is-light.is-borderless.ml-2(onclick=`copyToClipboard('${cab.pcbid}', this)` data-tooltip="Copy PCBID")
+                            span.icon.is-small
+                              i.mdi.mdi-content-copy
                         if admin
                           td
                             span.tag.is-light #{cab.username}
@@ -92,4 +108,16 @@ block content
           document.getElementById('rename-name').value = newName.trim();
           document.getElementById('rename-form').submit();
         }
+      }
+
+      function copyToClipboard(text, btn) {
+        navigator.clipboard.writeText(text).then(() => {
+          const originalIcon = btn.innerHTML;
+          btn.innerHTML = '<span class="icon is-small has-text-success"><i class="mdi mdi-check"></i></span>';
+          setTimeout(() => {
+            btn.innerHTML = originalIcon;
+          }, 2000);
+        }).catch(err => {
+          console.error('Failed to copy: ', err);
+        });
       }

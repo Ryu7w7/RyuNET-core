@@ -26,7 +26,8 @@ profileRouter.get(
         return res.redirect(`/profile/${card.__refid}`);
       }
     }
-    return res.redirect('/');
+    req.flash('formWarn', 'Please link a Card Number in your Account settings to view your profile.');
+    return res.redirect('/account');
   })
 );
 

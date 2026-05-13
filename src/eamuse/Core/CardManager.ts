@@ -12,6 +12,8 @@ import {
   APIFindOne,
   FindUserByCardNumber,
   UpdateUserAccount,
+  GetCabinetByPCBID,
+  FindUserByUsername,
 } from '../../utils/EamuseIO';
 
 export const cardmng = new EamuseRouteContainer();
@@ -127,6 +129,16 @@ cardmng.add('cardmng.getrefid', async (info, data, send) => {
   if (!newCard) {
     // Creation Failed
     return send.deny();
+  }
+
+  if (info.pcbid) {
+    const cabinet = await GetCabinetByPCBID(info.pcbid);
+    if (cabinet && cabinet.username) {
+      const user = await FindUserByUsername(cabinet.username);
+      if (user && (!user.cardNumber || user.cardNumber === '')) {
+        await UpdateUserAccount(user.username, { cardNumber: cid });
+      }
+    }
   }
 
   send.object({ '@attr': { dataid: refid, refid } });

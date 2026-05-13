@@ -81,6 +81,7 @@ html.has-aside-left.has-aside-mobile-transition.has-navbar-fixed-top.has-aside-e
           .navbar-end
             .navbar-item.has-dropdown.has-dropdown-with-icons.has-divider.is-hoverable
               a.navbar-link.is-arrowless
+                span.tag.is-success.is-light#online-users-badge(style="margin-right: 10px; display: none;") Online: ?
                 span.icon
                   i.mdi.mdi-account-circle
                 span #{user}
@@ -167,4 +168,21 @@ html.has-aside-left.has-aside-mobile-transition.has-navbar-fixed-top.has-aside-e
       block modal
 
       script(type="text/javascript" src="/static/js/main.js")
+      script.
+        function updateOnlineUsers() {
+          fetch('/api/online-users')
+            .then(r => r.json())
+            .then(data => {
+              const badge = document.getElementById('online-users-badge');
+              if (badge) {
+                badge.textContent = `Online: ${data.online}`;
+                badge.style.display = 'inline-flex';
+              }
+            })
+            .catch(console.error);
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+          updateOnlineUsers();
+          setInterval(updateOnlineUsers, 30000);
+        });
       block scripts

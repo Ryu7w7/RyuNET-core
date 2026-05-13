@@ -136,8 +136,8 @@ discordRouter.get(
 
       const existingUserLinked = await FindUserByDiscordId(discordId);
       if (existingUserLinked && existingUserLinked.username !== req.session.user.username) {
-        // req.flash doesn't exist for settings, but we might redirect with error query
-        return res.redirect('/settings?discord_error=already_linked');
+        req.flash('formWarn', 'This Discord account is already linked to another RyuNET account.');
+        return res.redirect('/account');
       }
 
       await UpdateUserAccount(req.session.user.username, {
@@ -151,7 +151,8 @@ discordRouter.get(
         await CreateCabinet(req.session.user.username, 'Default Cabinet');
       }
 
-      return res.redirect('/settings?discord_success=true');
+      req.flash('formOk', 'Discord account linked successfully.');
+      return res.redirect('/account');
     }
 
     // Login logic

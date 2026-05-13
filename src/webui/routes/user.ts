@@ -9,6 +9,8 @@ import {
   DeleteApiToken,
   FindCard,
   FindProfile,
+  GetAllCabinets,
+  FindUserByCardNumber,
 } from '../../utils/EamuseIO';
 import { json } from 'body-parser';
 import { wrap, adminMiddleware } from '../shared/middleware';
@@ -20,14 +22,15 @@ export const userRouter = Router();
 userRouter.get(
   '/account',
   wrap(async (req, res) => {
-    res.render('account', data(req, 'Account', 'core'));
+    const fullUser = await FindUserByUsername(req.session.user!.username);
+    res.render('account', data(req, 'Account', 'core', { fullUser }));
   })
 );
 
 userRouter.post(
   '/account',
   wrap(async (req, res) => {
-    const { username, password, confirmPassword } = req.body;
+    const { username, password, confirmPassword, cardNumber } = req.body;
     const currentUsername = req.session.user!.username;
 
     if (password && password !== confirmPassword) {
@@ -40,7 +43,7 @@ userRouter.post(
       return res.redirect('/account');
     }
 
-    const updateFields: { username?: string; password?: string } = {};
+    const updateFields: { username?: string; password?: string; cardNumber?: string } = {};
 
     if (username && username !== currentUsername) {
       if (username.length < 3) {
@@ -59,14 +62,52 @@ userRouter.post(
       updateFields.password = password;
     }
 
+    if (cardNumber !== undefined) {
+      const normalized = String(cardNumber)
+        .toUpperCase()
+        .trim()
+        .replace(/[\s\-]/g, '')
+        .replace(/O/g, '0')
+        .replace(/I/g, '1');
+
+      if (normalized === '' || /^[0-9A-F]{16}$/.test(normalized)) {
+        if (normalized !== '' && normalized !== req.session.user!.cardNumber) {
+          const existing = await FindUserByCardNumber(normalized);
+          if (existing) {
+            req.flash('formWarn', 'This card number is already registered to another user.');
+            return res.redirect('/account');
+          }
+        }
+        updateFields.cardNumber = normalized;
+      } else {
+        req.flash('formWarn', 'Invalid card number format.');
+        return res.redirect('/account');
+      }
+    }
+
     if (Object.keys(updateFields).length > 0) {
       await UpdateUserAccount(currentUsername, updateFields);
       if (updateFields.username) {
         req.session.user!.username = updateFields.username;
       }
+      if (updateFields.cardNumber !== undefined) {
+        req.session.user!.cardNumber = updateFields.cardNumber;
+      }
       req.flash('formOk', 'Account updated.');
     }
 
+    res.redirect('/account');
+  })
+);
+
+userRouter.post(
+  '/account/unlink-discord',
+  wrap(async (req, res) => {
+    await UpdateUserAccount(req.session.user!.username, {
+      discordId: null,
+      discordUsername: null,
+    });
+    req.flash('formOk', 'Discord account unlinked successfully.');
     res.redirect('/account');
   })
 );
@@ -133,6 +174,17 @@ userRouter.get(
     }
 
     res.json(result);
+  })
+);
+
+// Online users
+userRouter.get(
+  '/api/online-users',
+  wrap(async (req, res) => {
+    const threshold = Date.now() - 5 * 60 * 1000; // 5 minutes
+    const cabinets = await GetAllCabinets();
+    const onlineCount = cabinets.filter(c => c.lastSeen && c.lastSeen > threshold).length;
+    res.json({ online: onlineCount });
   })
 );
 

@@ -23,6 +23,19 @@ block content
                         i.mdi.mdi-account
               .field.is-horizontal
                 .field-label.is-normal
+                  label.label Card Number
+                .field-body
+                  .field
+                    .control.has-icons-left
+                      input.input(type="text" name="cardNumber" placeholder="16-character Card Number (optional)" value=fullUser.cardNumber)
+                      span.icon.is-small.is-left
+                        i.mdi.mdi-credit-card
+                    p.help.is-info
+                      span.icon.is-small.mr-1
+                        i.mdi.mdi-information
+                      | Note: You must already be registered in the game. Try creating a save data or ending a session with that card in the game so it appears in the webui. It's a problem I'll resolve soon, so I apologize for the inconvenience.
+              .field.is-horizontal
+                .field-label.is-normal
                   label.label New Password
                 .field-body
                   .field
@@ -42,10 +55,17 @@ block content
               .field.is-grouped.is-grouped-right
                 .control
                   if config.discord_client_id
-                    a.button.is-link(href="/auth/discord?action=link" style="background-color: #5865F2;")
-                      span.icon.is-small
-                        i.mdi.mdi-discord
-                      span Link Discord
+                    if fullUser && fullUser.discordId
+                      form(method="post" action="/account/unlink-discord" style="display: inline-block; margin-right: 10px;" onsubmit="return confirm('Are you sure you want to unlink your Discord account?');")
+                        button.button.is-danger(type="submit")
+                          span.icon.is-small
+                            i.mdi.mdi-discord
+                          span Unlink Discord
+                    else
+                      a.button.is-link(href="/auth/discord?action=link" style="background-color: #5865F2;")
+                        span.icon.is-small
+                          i.mdi.mdi-discord
+                        span Link Discord
                 .control.is-expanded
                   if formMessage
                     if formMessage.danger
