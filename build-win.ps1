@@ -10,8 +10,8 @@ New-Item -Path "." -Name "build" -ItemType "directory" -Force | Out-Null
 
 Write-Output "Copying windows node binary cache"
 New-Item -Path "$env:USERPROFILE" -Name ".pkg-cache" -ItemType "directory" -Force | Out-Null
-New-Item -Path "$env:USERPROFILE\.pkg-cache" -Name "v2.6" -ItemType "directory" -Force | Out-Null
-Copy-Item -Path "build-env\pkg-cache\*" -Destination "$env:USERPROFILE\.pkg-cache\v2.6"
+New-Item -Path "$env:USERPROFILE\.pkg-cache" -Name "v3.4" -ItemType "directory" -Force | Out-Null
+Copy-Item -Path "build-env\pkg-cache\*" -Destination "$env:USERPROFILE\.pkg-cache\v3.4"
 
 
 Write-Output "NPM Install"
@@ -42,7 +42,7 @@ Copy-Item -Path ".\build-env\pkg-cache\built-v16.16.0-win-x64" -Destination "$en
 Write-Output "Packing binaries"
 
 # Packing x64
-npx pkg .\build-env -t "node16.16.0-win-x64" -o .\build\asphyxia-core-x64 --options no-warnings
+node .\node_modules\pkg\lib-es5\bin.js .\build-env -t "node16.16.0-win-x64" -o .\build\asphyxia-core-x64 --options no-warnings
 
 # Packing x86
-npx pkg .\build-env -t "node16.16.0-win-x86" -o .\build\asphyxia-core-x86 --options no-warnings
+node .\node_modules\pkg\lib-es5\bin.js .\build-env -t "node16.16.0-win-x86" -o .\build\asphyxia-core-x86 --options no-warnings
