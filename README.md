@@ -2,12 +2,13 @@
 
 A fork of [asphyxia-core](https://github.com/asphyxia-core/core) with additional features.
 
-Some of the core changes were made specifically to support a forked SDVX plugin. The plugin is maintained in a separate repository: [Beafowl/asphyxia_plugins (kfc branch)](https://github.com/Beafowl/asphyxia_plugins/tree/kfc), which is itself a fork of [22vv0's plugin](https://github.com/22vv0/asphyxia_plugins).
+Some of the core changes were made specifically to support a forked SDVX plugin. The plugin is maintained in a separate repository: [Ryu7w7/asphyxia_plugins](https://github.com/Ryu7w7/asphyxia_plugins), which is itself a fork of [22vv0's plugin](https://github.com/22vv0/asphyxia_plugins).
 
 ## Credits
 
 - **[Team Asphyxia](https://github.com/asphyxia-core)** - Original Asphyxia Core and plugins
 - **[22vv0](https://github.com/22vv0/asphyxia_plugins)** - Forked SDVX plugin (with LatoWolf)
+- **[Beafowl](https://github.com/Beafowl/asphyxia_plugins)** - Forked Asphyxia Core
 
 ## Setup
 
@@ -77,7 +78,7 @@ Log in to the WebUI and change the admin password immediately. If your server is
 - **e-amusement cloud (Konaste) support**: Native protocol support for official PC/Cloud game clients.
 
 ### Core changes for the SDVX plugin
-These are server-side changes in this repository that support the [forked SDVX plugin](https://github.com/Beafowl/asphyxia_plugins/tree/kfc).
+These are server-side changes in this repository that support the [forked SDVX plugin](https://github.com/Ryu7w7/asphyxia_plugins).
 - Tachi OAuth client ID and secret configurable via `config.ini`
 - Nabla volforce recalculation endpoint
 - Tachi export timestamp tracking and v7 score export support

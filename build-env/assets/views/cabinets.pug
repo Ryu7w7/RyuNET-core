@@ -29,8 +29,8 @@ block content
                     |  for all your games. You do not need to generate a separate PCBID for each game. Use the same PCBID across all your game clients.
                   p.mt-2
                     strong EA Service URL:
-                    code#ea-service-url.ml-2 http://ea.ryu7w7.xyz/service/init
-                    button.button.is-small.is-light.ml-2(onclick="copyToClipboard('http://ea.ryu7w7.xyz/service/init', this)" data-tooltip="Copy URL")
+                    code#ea-service-url.ml-2 #{config.ea_service_url}
+                    button.button.is-small.is-light.ml-2(onclick=`copyToClipboard('${config.ea_service_url}', this)` data-tooltip="Copy URL")
                       span.icon.is-small
                         i.mdi.mdi-content-copy
               p A Cabinet represents an arcade machine or game client. To play online with RyuNET, your game client must send a PCBID that is registered here.

@@ -186,6 +186,13 @@ function CoreConfig() {
     default: true,
     desc: 'Reject e-amusement connections from unknown/unregistered PCBIDs (Cabinets)',
   });
+
+  CONFIG_MAP['core'].set('ea_service_url', {
+    name: 'EA Service URL',
+    type: 'string',
+    default: 'http://ea.ryu7w7.xyz/service/init',
+    desc: 'The EA service initialization URL displayed on the cabinets page (e.g. http://your-domain.xyz/service/init)',
+  });
 }
 CoreConfig();
 

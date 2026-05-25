@@ -562,6 +562,47 @@ export async function UpdateUserAccount(
     if (update.discordUsername !== undefined) setFields.discordUsername = update.discordUsername;
 
     await CoreDB.updateAsync({ __s: 'user_account', username }, { $set: setFields });
+
+    if (update.username && update.username !== username) {
+      const newUsername = update.username;
+
+      await CoreDB.updateAsync(
+        { __s: 'cabinet', username },
+        { $set: { username: newUsername } },
+        { multi: true }
+      );
+
+      await CoreDB.updateAsync(
+        { __s: 'api_token', username },
+        { $set: { username: newUsername } },
+        { multi: true }
+      );
+
+      await CoreDB.updateAsync(
+        { __s: 'tachi_token', username },
+        { $set: { username: newUsername } },
+        { multi: true }
+      );
+
+      await CoreDB.updateAsync(
+        { __s: 'oauth_client', createdBy: username },
+        { $set: { createdBy: newUsername } },
+        { multi: true }
+      );
+
+      await CoreDB.updateAsync(
+        { __s: 'oauth_code', username },
+        { $set: { username: newUsername } },
+        { multi: true }
+      );
+
+      await CoreDB.updateAsync(
+        { __s: 'oauth_access_token', username },
+        { $set: { username: newUsername } },
+        { multi: true }
+      );
+    }
+
     return true;
   } catch (err) {
     Logger.error(err);

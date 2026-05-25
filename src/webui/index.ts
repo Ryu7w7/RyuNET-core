@@ -37,7 +37,7 @@ webui.use(
   session({
     cookie: { maxAge: 86400000, sameSite: 'lax' },
     proxy: true,
-    secret: 'c0dedeadc0debeef',
+    secret: process.env.SESSION_SECRET || 'c0dedeadc0debeef',
     resave: false,
     saveUninitialized: true,
     store: new memorystore({ checkPeriod: 86400000 }),
