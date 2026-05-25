@@ -11,7 +11,7 @@ export const NAMES = [
   'Aiden',
   'Aisha',
   'Aka',
-  'Akai'
+  'Akai',
   'Akari',
   'Akehiro',
   'Aki',
@@ -699,7 +699,7 @@ export const NAMES = [
   'Tsunomaki',
   'Tyler',
   'Ursula',
-  'Usopp
+  'Usopp',
   'Valerie',
   'Vanessa',
   'Veronica',
