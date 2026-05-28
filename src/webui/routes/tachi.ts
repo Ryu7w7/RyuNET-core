@@ -372,6 +372,7 @@ tachiRouter.post(
           if (updated) {
             await APIUpsert(
               plugin,
+              refid,
               { collection: 'score', mid: score.mid },
               {
                 $set: {
@@ -509,7 +510,10 @@ tachiRouter.get(
     const songs = result.body.songs || [];
 
     if (resultDp && resultDp.success) {
-      if (resultDp.body.pbs) pbs.push(...resultDp.body.pbs);
+      if (resultDp.body.pbs) {
+        resultDp.body.pbs.forEach((p: any) => (p._isDp = true));
+        pbs.push(...resultDp.body.pbs);
+      }
       if (resultDp.body.charts) charts.push(...resultDp.body.charts);
       if (resultDp.body.songs) songs.push(...resultDp.body.songs);
     }
@@ -525,7 +529,7 @@ tachiRouter.get(
       'PERFECT ULTIMATE CHAIN': 5, 'MAXXIVE CLEAR': 6,
     };
     const GRADE_MAP: Record<string, number> = game === 'iidx' ? {
-      'F': 0, 'E': 1, 'D': 2, 'C': 3, 'B': 4, 'A': 5, 'AA': 6, 'AAA': 7,
+      'F': 0, 'E': 1, 'D': 2, 'C': 3, 'B': 4, 'A': 5, 'AA': 6, 'AAA': 7, 'MAX-': 7, 'MAX': 7,
     } : {
       'D': 1, 'C': 2, 'B': 3, 'A': 4, 'A+': 5, 'AA': 6, 'AA+': 7, 'AAA': 8, 'AAA+': 9, 'S': 10, 'PUC': 10,
     };
@@ -543,7 +547,12 @@ tachiRouter.get(
       if (!chart || !song) continue;
 
       const clear = LAMP_TO_CLEAR[pb.scoreData.lamp];
-      const type = DIFF_TO_TYPE[chart.difficulty];
+      let diffStr = chart.difficulty;
+      if (game === 'iidx') {
+        if (diffStr === 'BEGINNER') diffStr = 'SP BEGINNER';
+        else diffStr = (pb._isDp ? 'DP ' : 'SP ') + diffStr;
+      }
+      const type = DIFF_TO_TYPE[diffStr];
       if (clear === undefined || type === undefined) continue;
 
       scores.push({
@@ -598,7 +607,10 @@ tachiRouter.get(
     const songs = result.body.songs || [];
 
     if (resultDp && resultDp.success) {
-      if (resultDp.body.pbs) pbs.push(...resultDp.body.pbs);
+      if (resultDp.body.pbs) {
+        resultDp.body.pbs.forEach((p: any) => p._isDp = true);
+        pbs.push(...resultDp.body.pbs);
+      }
       if (resultDp.body.charts) charts.push(...resultDp.body.charts);
       if (resultDp.body.songs) songs.push(...resultDp.body.songs);
     }
@@ -613,12 +625,18 @@ tachiRouter.get(
       const song = songMap[pb.songID];
       if (!chart || !song) continue;
 
+      let diffStr = chart.difficulty;
+      if (game === 'iidx') {
+        if (diffStr === 'BEGINNER') diffStr = 'SP BEGINNER';
+        else diffStr = (pb._isDp ? 'DP ' : 'SP ') + diffStr;
+      }
+
       scores.push({
         score: pb.scoreData.score,
         lamp: pb.scoreData.lamp,
         grade: pb.scoreData.grade,
         songName: song.title,
-        difficulty: chart.difficulty,
+        difficulty: diffStr,
         level: chart.level,
         vf: game === 'iidx' ? (pb.calculatedData?.BPI || 0) : (pb.calculatedData?.VF6 || 0),
       });
