@@ -243,8 +243,14 @@ tachiRouter.post(
       return res.status(400).json({ success: false, description: 'No scores to import' });
     }
 
+    const game = req.body.game || 'sdvx';
+    const meta: any = { game, service: 'Asphyxia' };
+    if (req.body.playtype && !game.includes('-')) {
+      meta.playtype = req.body.playtype;
+    }
+
     const batchManual = JSON.stringify({
-      meta: { game: 'sdvx', playtype: 'Single', service: 'Asphyxia' },
+      meta,
       scores,
     });
 
@@ -299,6 +305,7 @@ tachiRouter.post(
   json({ limit: '50mb' }),
   wrap(async (req, res) => {
     const { refid, scores } = req.body;
+    const game = req.body.game || 'sdvx';
     if (!refid || !scores || !Array.isArray(scores)) {
       return res.status(400).json({ success: false, description: 'Missing refid or scores' });
     }
@@ -306,6 +313,82 @@ tachiRouter.post(
     const isAdmin = req.session.user!.admin;
     const isOwner = await userOwnsProfile(req, refid);
     if (!isAdmin && !isOwner) return res.sendStatus(403);
+
+    if (game === 'iidx' || game === 'iidx-sp' || game === 'iidx-dp') {
+      const plugin = { identifier: 'iidx@asphyxia', core: false };
+      let saved = 0;
+      let skipped = 0;
+
+      for (const score of scores) {
+        try {
+          const existing: any = await APIFindOne(plugin, refid, {
+            collection: 'score',
+            mid: score.mid,
+          });
+
+          let optArray = Array<number>(10).fill(0);
+          let opt2Array = Array<number>(10).fill(0);
+          let pgArray = Array<number>(10).fill(0);
+          let gArray = Array<number>(10).fill(0);
+          let mArray = Array<number>(10).fill(-1);
+          let cArray = Array<number>(10).fill(0);
+          let rArray = Array<number>(10).fill(-1);
+          let esArray = Array<number>(10).fill(0);
+
+          if (existing) {
+            optArray = existing.optArray || optArray;
+            opt2Array = existing.opt2Array || opt2Array;
+            pgArray = existing.pgArray || pgArray;
+            gArray = existing.gArray || gArray;
+            mArray = existing.mArray || mArray;
+            cArray = existing.cArray || cArray;
+            rArray = existing.rArray || rArray;
+            esArray = existing.esArray || esArray;
+          }
+
+          const clid = score.type;
+          const exscore = score.exscore || score.score;
+          const clear = score.clear;
+          const grade = score.grade;
+          const missCount = score.missCount !== undefined ? score.missCount : -1;
+
+          let updated = false;
+
+          // Check if exscore is better or clear is better or grade is better
+          if (
+            esArray[clid] < exscore ||
+            cArray[clid] < clear ||
+            rArray[clid] < grade
+          ) {
+            if (esArray[clid] < exscore) esArray[clid] = exscore;
+            if (cArray[clid] < clear) cArray[clid] = clear;
+            if (rArray[clid] < grade) rArray[clid] = grade;
+            if (mArray[clid] === -1 || (missCount !== -1 && missCount < mArray[clid])) {
+              mArray[clid] = missCount;
+            }
+            updated = true;
+          }
+
+          if (updated) {
+            await APIUpsert(
+              plugin,
+              { collection: 'score', mid: score.mid },
+              {
+                $set: {
+                  pgArray, gArray, mArray, cArray, rArray, esArray, optArray, opt2Array
+                }
+              }
+            );
+            saved++;
+          } else {
+            skipped++;
+          }
+        } catch (err) {
+          Logger.error(`Failed to save IIDX Tachi score mid=${score.mid} type=${score.type}: ${err}`);
+        }
+      }
+      return res.json({ success: true, saved, skipped });
+    }
 
     const plugin = { identifier: 'sdvx@asphyxia', core: false };
     let saved = 0;
@@ -398,6 +481,8 @@ tachiRouter.get(
     const token = await GetTachiToken(req.session.user!.username);
     if (!token) return res.status(401).json({ success: false, description: 'Not authorized' });
 
+    const game = (req.query.game as string) || 'sdvx';
+
     const tachiGet = (urlPath: string): Promise<any> =>
       new Promise((resolve, reject) => {
         https
@@ -411,24 +496,44 @@ tachiRouter.get(
           .on('error', reject);
       });
 
-    const result = await tachiGet('/api/v1/users/me/games/sdvx/pbs/all');
+    const result = await tachiGet(game === 'iidx' ? `/api/v1/users/me/games/iidx-sp/pbs/all` : `/api/v1/users/me/games/${game}/pbs/all`);
+    let resultDp: any = null;
+    if (game === 'iidx') {
+      resultDp = await tachiGet(`/api/v1/users/me/games/iidx-dp/pbs/all`);
+    }
+
     if (!result.success) return res.json({ success: false, description: result.description || 'Failed' });
 
-    const { pbs, charts, songs } = result.body;
+    const pbs = result.body.pbs || [];
+    const charts = result.body.charts || [];
+    const songs = result.body.songs || [];
+
+    if (resultDp && resultDp.success) {
+      if (resultDp.body.pbs) pbs.push(...resultDp.body.pbs);
+      if (resultDp.body.charts) charts.push(...resultDp.body.charts);
+      if (resultDp.body.songs) songs.push(...resultDp.body.songs);
+    }
     const chartMap: Record<string, any> = {};
     for (const c of charts) chartMap[c.chartID] = c;
     const songMap: Record<number, any> = {};
     for (const s of songs) songMap[s.id] = s;
 
-    const LAMP_TO_CLEAR: Record<string, number> = {
+    const LAMP_TO_CLEAR: Record<string, number> = game === 'iidx' ? {
+      'NO PLAY': 0, 'FAILED': 1, 'ASSIST CLEAR': 2, 'EASY CLEAR': 3, 'CLEAR': 4, 'HARD CLEAR': 5, 'EX HARD CLEAR': 6, 'FULL COMBO': 7,
+    } : {
       'FAILED': 1, 'CLEAR': 2, 'EXCESSIVE CLEAR': 3, 'ULTIMATE CHAIN': 4,
       'PERFECT ULTIMATE CHAIN': 5, 'MAXXIVE CLEAR': 6,
     };
-    const GRADE_MAP: Record<string, number> = {
+    const GRADE_MAP: Record<string, number> = game === 'iidx' ? {
+      'F': 0, 'E': 1, 'D': 2, 'C': 3, 'B': 4, 'A': 5, 'AA': 6, 'AAA': 7,
+    } : {
       'D': 1, 'C': 2, 'B': 3, 'A': 4, 'A+': 5, 'AA': 6, 'AA+': 7, 'AAA': 8, 'AAA+': 9, 'S': 10, 'PUC': 10,
     };
-    const DIFF_TO_TYPE: Record<string, number> = {
-      NOV: 0, ADV: 1, EXH: 2, INF: 3, GRV: 3, HVN: 3, VVD: 3, XCD: 3, MXM: 4, ULT: 5,
+    const DIFF_TO_TYPE: Record<string, number> = game === 'iidx' ? {
+      'SP BEGINNER': 0, 'SP NORMAL': 1, 'SP HYPER': 2, 'SP ANOTHER': 3, 'SP LEGGENDARIA': 4,
+      'DP NORMAL': 6, 'DP HYPER': 7, 'DP ANOTHER': 8, 'DP LEGGENDARIA': 9,
+    } : {
+      'NOV': 0, 'ADV': 1, 'EXH': 2, 'INF': 3, 'GRV': 3, 'HVN': 3, 'VVD': 3, 'XCD': 3, 'MXM': 4, 'ULT': 5,
     };
 
     const scores: any[] = [];
@@ -447,7 +552,8 @@ tachiRouter.get(
         score: pb.scoreData.score,
         clear,
         grade: GRADE_MAP[pb.scoreData.grade] || 0,
-        exscore: pb.scoreData.optional?.exScore || 0,
+        exscore: game === 'iidx' ? pb.scoreData.score : (pb.scoreData.optional?.exScore || 0),
+        missCount: pb.scoreData.optional?.missCount !== undefined ? pb.scoreData.optional.missCount : -1,
         timeAchieved: pb.timeAchieved || null,
         songName: song.title,
         difficulty: chart.difficulty,
@@ -464,6 +570,8 @@ tachiRouter.get(
     const token = await GetTachiToken(req.session.user!.username);
     if (!token) return res.status(401).json({ success: false, description: 'Not authorized' });
 
+    const game = (req.query.game as string) || 'sdvx';
+
     const tachiGet = (urlPath: string): Promise<any> =>
       new Promise((resolve, reject) => {
         https
@@ -477,10 +585,23 @@ tachiRouter.get(
           .on('error', reject);
       });
 
-    const result = await tachiGet('/api/v1/users/me/games/sdvx/pbs/best');
+    const result = await tachiGet(game === 'iidx' ? `/api/v1/users/me/games/iidx-sp/pbs/best` : `/api/v1/users/me/games/${game}/pbs/best`);
+    let resultDp: any = null;
+    if (game === 'iidx') {
+      resultDp = await tachiGet(`/api/v1/users/me/games/iidx-dp/pbs/best`);
+    }
+
     if (!result.success) return res.json({ success: false, description: result.description || 'Failed' });
 
-    const { pbs, charts, songs } = result.body;
+    const pbs = result.body.pbs || [];
+    const charts = result.body.charts || [];
+    const songs = result.body.songs || [];
+
+    if (resultDp && resultDp.success) {
+      if (resultDp.body.pbs) pbs.push(...resultDp.body.pbs);
+      if (resultDp.body.charts) charts.push(...resultDp.body.charts);
+      if (resultDp.body.songs) songs.push(...resultDp.body.songs);
+    }
     const chartMap: Record<string, any> = {};
     for (const c of charts) chartMap[c.chartID] = c;
     const songMap: Record<number, any> = {};
@@ -489,7 +610,7 @@ tachiRouter.get(
     const scores: any[] = [];
     for (const pb of pbs) {
       const chart = chartMap[pb.chartID];
-      const song = chart ? songMap[chart.songID] : null;
+      const song = songMap[pb.songID];
       if (!chart || !song) continue;
 
       scores.push({
@@ -499,9 +620,21 @@ tachiRouter.get(
         songName: song.title,
         difficulty: chart.difficulty,
         level: chart.level,
-        vf: pb.calculatedData?.VF6 || 0,
+        vf: game === 'iidx' ? (pb.calculatedData?.BPI || 0) : (pb.calculatedData?.VF6 || 0),
       });
     }
+
+    require('fs').writeFileSync('tachi_debug_result.json', JSON.stringify({ 
+      game, 
+      resultSuccess: result.success, 
+      resultDescription: result.description, 
+      resultDpSuccess: resultDp?.success,
+      pbsLength: pbs.length,
+      chartsLength: charts.length,
+      songsLength: songs.length,
+      scoresLength: scores.length 
+    }));
+
     res.json({ success: true, scores });
   })
 );
