@@ -193,6 +193,13 @@ function CoreConfig() {
     default: 'http://ea.ryu7w7.xyz/service/init',
     desc: 'The EA service initialization URL displayed on the cabinets page (e.g. http://your-domain.xyz/service/init)',
   });
+
+  CONFIG_MAP['core'].set('rich_presence_lookup', {
+    name: 'Rich Presence Lookup',
+    type: 'boolean',
+    default: true,
+    desc: 'Enable the public /api/rp/lookup endpoint for SDVX Rich Presence name detection',
+  });
 }
 CoreConfig();
 

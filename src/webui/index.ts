@@ -19,6 +19,7 @@ import { oauthRouter } from './routes/oauth';
 import { nauticaRouter } from './routes/nautica';
 import { discordRouter } from './routes/discord';
 import { cabinetsRouter } from './routes/cabinets';
+import { richPresenceRouter } from './routes/richpresence';
 
 // Shared
 import { authMiddleware, bearerTokenMiddleware } from './shared/middleware';
@@ -78,6 +79,7 @@ webui.use('/tachi', tachiRouter); // Some Tachi routes are public or handled int
 webui.use(oauthRouter); // OAuth Provider endpoints
 webui.use(nauticaRouter); // SDVX Custom Charts / Drive endpoints
 webui.use(discordRouter); // Discord login / linking
+webui.use(richPresenceRouter); // SDVX Rich Presence name lookup (public, read-only)
 
 // --- Protected Routes ---
 webui.use(bearerTokenMiddleware);
