@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { FindCard, FindProfile } from '../../utils/EamuseIO';
+import { GET_DB } from '../../utils/EamuseIO';
 import { wrap } from '../shared/middleware';
 
 export const richPresenceRouter = Router();
@@ -22,7 +23,7 @@ const rpLookupLimit = rateLimit({
  * GET /api/rp/lookup?cid=<card_id>
  *
  * Public, read-only endpoint for SDVX Rich Presence name detection.
- * Given a card ID (CID), returns ONLY the in-game profile name.
+ * Given a card ID (CID), returns ONLY the in-game profile name and VolForce.
  *
  * Intentionally limited response — no refid, no paseli, no pin, no personal data.
  *
@@ -64,7 +65,40 @@ richPresenceRouter.get(
       return res.status(404).json({ error: 'Profile not found.' });
     }
 
-    // Return ONLY the name — nothing else
-    return res.json({ name: profile.name });
+    let totalVolforce = 0;
+
+    try {
+      // Load SDVX database to calculate VolForce
+      const sdvxDB = await GET_DB('sdvx@asphyxia');
+      if (sdvxDB) {
+        // Query the player's music records
+        const records = await sdvxDB.findAsync({
+          __s: 'plugins_profile',
+          collection: 'music',
+          __refid: card.__refid,
+          volforce: { $exists: true }
+        });
+
+        if (records && records.length > 0) {
+          // Sort by highest volforce descending
+          records.sort((a: any, b: any) => (b.volforce || 0) - (a.volforce || 0));
+          
+          // Sum the top 50 scores
+          const top50 = records.slice(0, 50);
+          const rawSum = top50.reduce((acc: number, cur: any) => acc + (cur.volforce || 0), 0);
+          
+          // The game stores volforce as integer (e.g. 19234). We divide by 1000 to get float.
+          totalVolforce = rawSum / 1000;
+        }
+      }
+    } catch (err) {
+      console.error('Failed to calculate VolForce for RP lookup', err);
+    }
+
+    // Return Name and VolForce
+    return res.json({ 
+      name: profile.name,
+      volforce: totalVolforce
+    });
   })
 );

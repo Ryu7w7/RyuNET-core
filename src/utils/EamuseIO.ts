@@ -99,7 +99,7 @@ export const LoadCoreDB = async () => {
 
 const DBInstances: { [key: string]: nedb } = {};
 
-const GET_DB = async (affiliation: string) => {
+export const GET_DB = async (affiliation: string) => {
   if (!DBInstances[affiliation]) {
     DBInstances[affiliation] = await LoadDatabase(path.join(SAVE_PATH, `${affiliation}.db`));
     if (!DBInstances[affiliation]) {
