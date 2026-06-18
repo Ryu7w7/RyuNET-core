@@ -53,7 +53,7 @@ export const EamuseMiddleware: RequestHandler = async (req, res, next) => {
 
   const agent = req.headers['user-agent'] || '';
 
-  if (agent.indexOf('Mozilla') >= 0) {
+  if (agent.indexOf('Mozilla') >= 0 || req.originalUrl.startsWith('/api/')) {
     (req as any).skip = true;
     return next();
   }

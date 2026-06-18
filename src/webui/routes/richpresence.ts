@@ -87,8 +87,8 @@ richPresenceRouter.get(
           const top50 = records.slice(0, 50);
           const rawSum = top50.reduce((acc: number, cur: any) => acc + (cur.volforce || 0), 0);
           
-          // The game stores volforce as integer (e.g. 19234). We divide by 1000 to get float.
-          totalVolforce = rawSum / 1000;
+          // The game stores volforce as integer (e.g. 19234). We return the raw integer as requested.
+          totalVolforce = rawSum;
         }
       }
     } catch (err) {
