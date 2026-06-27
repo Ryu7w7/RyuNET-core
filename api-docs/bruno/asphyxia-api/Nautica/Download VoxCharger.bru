@@ -1,0 +1,15 @@
+meta {
+  name: Download VoxCharger
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}/api/nautica/voxcharger
+  body: none
+  auth: inherit
+}
+
+docs {
+  Downloads VoxCharger.exe from the configured server path. Returns 404 if not configured.
+}

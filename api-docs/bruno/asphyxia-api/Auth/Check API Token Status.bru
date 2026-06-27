@@ -1,0 +1,15 @@
+meta {
+  name: Check API Token Status
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/account/api-token/status
+  body: none
+  auth: inherit
+}
+
+docs {
+  Check whether the authenticated user has an active API token.
+}

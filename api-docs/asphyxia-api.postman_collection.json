@@ -1,0 +1,283 @@
+{
+  "info": {
+    "name": "Asphyxia Core API",
+    "description": "API endpoints for Asphyxia Core — token auth, profile, Tachi sync, Flower sync, and Nautica custom charts.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8083",
+      "type": "string"
+    },
+    {
+      "key": "api_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth & Token Management",
+      "item": [
+        {
+          "name": "Login (session)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "admin", "type": "text" },
+                { "key": "password", "value": "admin", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            },
+            "description": "Session-based login. The redirect means a 302 on success."
+          }
+        },
+        {
+          "name": "Generate API Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.success && json.token) {",
+                  "    pm.collectionVariables.set('api_token', json.token);",
+                  "    pm.test('Token saved to collection variable', function() {",
+                  "        pm.expect(json.token).to.be.a('string');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/account/api-token",
+              "host": ["{{base_url}}"],
+              "path": ["account", "api-token"]
+            },
+            "description": "Generates a new API token. The token is returned once — copy it. Automatically saves it to the `api_token` collection variable."
+          }
+        },
+        {
+          "name": "Check API Token Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/account/api-token/status",
+              "host": ["{{base_url}}"],
+              "path": ["account", "api-token", "status"]
+            },
+            "description": "Check whether the authenticated user has an active API token."
+          }
+        },
+        {
+          "name": "Revoke API Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/account/api-token/revoke",
+              "host": ["{{base_url}}"],
+              "path": ["account", "api-token", "revoke"]
+            },
+            "description": "Revokes the current API token."
+          }
+        },
+        {
+          "name": "Get Authenticated User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "me"]
+            },
+            "description": "Returns the authenticated user's username, card number, admin status, and refid."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "profile"]
+            },
+            "description": "Returns the authenticated user's username, card number, and refid."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tachi",
+      "item": [
+        {
+          "name": "Tachi Sync (Export to Tachi)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/tachi/sync",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tachi", "sync"]
+            },
+            "description": "Exports new SDVX scores to Tachi. Requires Tachi to be connected via the WebUI first."
+          }
+        },
+        {
+          "name": "Tachi Auth Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tachi/status",
+              "host": ["{{base_url}}"],
+              "path": ["tachi", "status"]
+            },
+            "description": "Check if the user has a valid Tachi OAuth token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Flower",
+      "item": [
+        {
+          "name": "Flower Sync (Import from Flower)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/flower/sync",
+              "host": ["{{base_url}}"],
+              "path": ["api", "flower", "sync"]
+            },
+            "description": "Imports scores from Project Flower. Requires Flower to be connected via the WebUI first."
+          }
+        },
+        {
+          "name": "Flower Auth Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/flower/status",
+              "host": ["{{base_url}}"],
+              "path": ["flower", "status"]
+            },
+            "description": "Check if the user has a valid Project Flower OAuth token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Nautica Custom Charts",
+      "item": [
+        {
+          "name": "Chart Version Check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/nautica/version",
+              "host": ["{{base_url}}"],
+              "path": ["api", "nautica", "version"]
+            },
+            "description": "Returns a version hash of the current custom charts and the mix name. Used by the sync script to detect changes. No auth required."
+          }
+        },
+        {
+          "name": "Download All Charts (ZIP)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/nautica/download-all",
+              "host": ["{{base_url}}"],
+              "path": ["api", "nautica", "download-all"]
+            },
+            "description": "Downloads a ZIP of all curated custom charts (data_mods/asphyxia_custom). No auth required."
+          }
+        },
+        {
+          "name": "Download Single Chart (ZIP)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/nautica/download/10001",
+              "host": ["{{base_url}}"],
+              "path": ["api", "nautica", "download", "10001"]
+            },
+            "description": "Downloads a ZIP of a single custom chart by music ID. Requires auth."
+          }
+        },
+        {
+          "name": "Download Sync Script",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/nautica/sync-script",
+              "host": ["{{base_url}}"],
+              "path": ["api", "nautica", "sync-script"]
+            },
+            "description": "Downloads a .bat sync script with the server URL baked in. Players place it next to their game exe."
+          }
+        },
+        {
+          "name": "Download VoxCharger",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/nautica/voxcharger",
+              "host": ["{{base_url}}"],
+              "path": ["api", "nautica", "voxcharger"]
+            },
+            "description": "Downloads VoxCharger.exe from the configured server path. Returns 404 if not configured."
+          }
+        }
+      ]
+    }
+  ]
+}

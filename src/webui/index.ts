@@ -5,6 +5,13 @@ import createMemoryStore from 'memorystore';
 import flash from 'connect-flash';
 import { urlencoded } from 'body-parser';
 import rateLimit from 'express-rate-limit';
+import crypto from 'crypto';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
+import path from 'path';
+import archiver from 'archiver';
+import * as iconv from 'iconv-lite';
+(global as any).archiver = archiver;
+(global as any).iconv = iconv;
 
 // Module Imports
 import { authRouter } from './routes/auth';
@@ -20,6 +27,7 @@ import { nauticaRouter } from './routes/nautica';
 import { discordRouter } from './routes/discord';
 import { cabinetsRouter } from './routes/cabinets';
 import { richPresenceRouter } from './routes/richpresence';
+import { nablaRouter } from './routes/nabla';
 
 // Shared
 import { authMiddleware, bearerTokenMiddleware } from './shared/middleware';
@@ -32,13 +40,27 @@ import { ajax as emit } from './emit';
 const memorystore = createMemoryStore(session);
 export const webui = Router();
 
+function getSessionSecret(): string {
+  const { ARGS } = require('../utils/ArgConfig');
+  const secretPath = path.join(ARGS.savedata || 'savedata', '.session_secret');
+  try {
+    if (existsSync(secretPath)) {
+      const stored = readFileSync(secretPath, 'utf8').trim();
+      if (stored.length >= 32) return stored;
+    }
+  } catch {}
+  const secret = crypto.randomBytes(32).toString('hex');
+  try { writeFileSync(secretPath, secret, 'utf8'); } catch {}
+  return secret;
+}
+
 // --- Core Middleware Setup ---
 
 webui.use(
   session({
-    cookie: { maxAge: 86400000, sameSite: 'lax' },
+    cookie: { maxAge: 86400000, sameSite: 'lax', httpOnly: true },
     proxy: true,
-    secret: process.env.SESSION_SECRET || 'c0dedeadc0debeef',
+    secret: process.env.SESSION_SECRET || getSessionSecret(),
     resave: false,
     saveUninitialized: true,
     store: new memorystore({ checkPeriod: 86400000 }),
@@ -87,6 +109,7 @@ webui.use(authMiddleware);
 
 webui.use(userRouter);
 webui.use(profileRouter);
+webui.use('/api/nabla', nablaRouter);
 webui.use(migrationRouter);
 webui.use(leaderboardRouter);
 webui.use(pluginRouter);

@@ -1,0 +1,15 @@
+meta {
+  name: Get Authenticated User
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}/api/me
+  body: none
+  auth: inherit
+}
+
+docs {
+  Returns the authenticated user's username, card number, admin status, and refid.
+}

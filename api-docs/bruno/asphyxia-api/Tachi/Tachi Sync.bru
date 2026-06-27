@@ -1,0 +1,15 @@
+meta {
+  name: Tachi Sync (Export to Tachi)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/api/tachi/sync
+  body: none
+  auth: inherit
+}
+
+docs {
+  Exports new SDVX scores to Tachi. Requires Tachi to be connected via the WebUI first.
+}

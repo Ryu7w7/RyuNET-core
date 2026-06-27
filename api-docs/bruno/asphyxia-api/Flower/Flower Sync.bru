@@ -1,0 +1,15 @@
+meta {
+  name: Flower Sync (Import from Flower)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/api/flower/sync
+  body: none
+  auth: inherit
+}
+
+docs {
+  Imports scores from Project Flower. Requires Flower to be connected via the WebUI first.
+}

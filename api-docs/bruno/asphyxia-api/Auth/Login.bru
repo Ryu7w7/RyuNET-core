@@ -1,0 +1,20 @@
+meta {
+  name: Login (session)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/login
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  username: admin
+  password: admin
+}
+
+docs {
+  Session-based login. Returns a 302 redirect on success.
+}

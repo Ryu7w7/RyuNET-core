@@ -80,7 +80,11 @@ const LoadDatabase = async (file: string) => {
   }
 
   try {
-    await DB.removeAsync({ __s: 'plugins_profile', __refid: { $exists: false } }, { multi: true });
+    const docs = await DB.findAsync({ __s: 'plugins_profile' });
+    const toRemove = docs.filter((d: any) => d.__refid === undefined);
+    for (const d of toRemove) {
+      await DB.removeAsync({ _id: d._id }, {});
+    }
   } catch (err) {
     Logger.error(err);
   }

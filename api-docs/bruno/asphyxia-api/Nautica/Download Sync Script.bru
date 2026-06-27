@@ -1,0 +1,15 @@
+meta {
+  name: Download Sync Script
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}/api/nautica/sync-script
+  body: none
+  auth: none
+}
+
+docs {
+  Downloads a .bat sync script with the server URL baked in. Players place it next to their game exe.
+}

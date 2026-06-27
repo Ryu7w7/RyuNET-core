@@ -1,0 +1,15 @@
+meta {
+  name: Download Single Chart (ZIP)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/api/nautica/download/10001
+  body: none
+  auth: inherit
+}
+
+docs {
+  Downloads a ZIP of a single custom chart by music ID. Requires auth.
+}

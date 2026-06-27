@@ -1,0 +1,15 @@
+meta {
+  name: Tachi Auth Status
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/tachi/status
+  body: none
+  auth: inherit
+}
+
+docs {
+  Check if the user has a valid Tachi OAuth token.
+}

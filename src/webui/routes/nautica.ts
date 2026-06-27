@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import path from 'path';
 import { CONFIG, SaveConfig } from '../../utils/ArgConfig';
-import { APIFind, PLUGIN_PATH } from '../../utils/EamuseIO';
+import { APIFind, APIFindOne, PLUGIN_PATH } from '../../utils/EamuseIO';
 import { wrap } from '../shared/middleware';
 
 export const nauticaRouter = Router();
@@ -264,3 +264,67 @@ nauticaRouter.get(
     await archive.finalize();
   })
 );
+
+nauticaRouter.get(
+  '/api/nautica/download/:musicId',
+  wrap(async (req, res) => {
+    if (!req.session.user) return res.sendStatus(401);
+    const musicId = parseInt(req.params.musicId);
+    if (isNaN(musicId)) return res.sendStatus(400);
+
+    const sdvxPlugin = { identifier: 'sdvx@asphyxia', core: false };
+    const song: any = await APIFindOne(sdvxPlugin, { collection: 'nautica_song', mid: musicId });
+    if (song && song.driveFileId) {
+      return res.redirect(302, `https://drive.google.com/uc?export=download&id=${encodeURIComponent(song.driveFileId)}`);
+    }
+
+    const sdvxConfig = CONFIG['sdvx@asphyxia'] || {};
+    const gameRoot = sdvxConfig.sdvx_eg_root_dir;
+    const mixName = sdvxConfig.sdvx_custom_mix_name || 'asphyxia_custom';
+    if (!gameRoot) return res.status(400).json({ error: 'Game directory not configured' });
+
+    const modBase = path.join(gameRoot, 'data_mods', mixName);
+    const musicBase = path.join(modBase, 'music');
+    if (!existsSync(musicBase)) return res.sendStatus(404);
+
+    const idStr = String(musicId).padStart(4, '0');
+    const dirs = readdirSync(musicBase);
+    const songFolder = dirs.find((d: string) => d.startsWith(idStr + '_'));
+    if (!songFolder) return res.sendStatus(404);
+
+    const archiver = require('archiver');
+    const archive = archiver('zip', { zlib: { level: 5 } });
+
+    res.set('Content-Type', 'application/zip');
+    res.set('Content-Disposition', `attachment; filename="${songFolder}.zip"`);
+    archive.pipe(res);
+    archive.directory(path.join(musicBase, songFolder), songFolder);
+    await archive.finalize();
+  })
+);
+
+nauticaRouter.get(
+  '/api/voxcharger/download',
+  wrap(async (req, res) => {
+    const candidates = [
+      path.resolve(process.cwd(), 'VoxCharger.exe'),
+      path.resolve(process.cwd(), '..', 'VoxCharger.exe'),
+      path.resolve(__dirname, '..', '..', 'VoxCharger.exe'),
+    ];
+    const exePath = candidates.find(p => existsSync(p));
+    if (!exePath) {
+      return res
+        .status(404)
+        .type('text/plain')
+        .send(
+          'VoxCharger.exe not found alongside the server binary. Place ' +
+          'VoxCharger.exe next to the asphyxia executable (or in this ' +
+          'server\'s working directory) and retry.'
+        );
+    }
+    res.set('Content-Type', 'application/octet-stream');
+    res.set('Content-Disposition', 'attachment; filename="VoxCharger.exe"');
+    res.sendFile(exePath);
+  })
+);
+

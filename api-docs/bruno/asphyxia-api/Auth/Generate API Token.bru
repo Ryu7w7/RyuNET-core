@@ -1,0 +1,25 @@
+meta {
+  name: Generate API Token
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/account/api-token
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  Generates a new API token. The token is returned once — copy it.
+}
+
+script:post-response {
+  if (res.body.success && res.body.token) {
+    bru.setEnvVar("api_token", res.body.token);
+  }
+}

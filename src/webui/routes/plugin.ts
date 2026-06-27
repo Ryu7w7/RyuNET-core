@@ -159,7 +159,7 @@ pluginRouter.get(
     const pageName = req.params['page'];
     if (!plugin) return next();
 
-    const ADMIN_ONLY_PAGES = ['startup flags', 'unlock events', 'update webui assets', 'weekly score attack'];
+    const ADMIN_ONLY_PAGES = ['startup flags', 'unlock events', 'update webui assets', 'weekly score attack', 'custom charts admin'];
     if (ADMIN_ONLY_PAGES.includes(pageName) && !req.session.user!.admin) {
       return res.redirect('/');
     }

@@ -26,6 +26,7 @@ const ADMIN_ONLY_PAGES = [
   'unlock events',
   'update webui assets',
   'weekly score attack',
+  'custom charts admin',
 ];
 
 export async function userOwnsProfile(req: Request, refid: string): Promise<boolean> {

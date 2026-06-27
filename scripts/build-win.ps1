@@ -1,4 +1,5 @@
 # Getting version
+Set-Location $PSScriptRoot\..
 $VER_CODE = Select-String -Path ".\src\utils\Consts.ts" -Pattern "VERSION = '(.*)'"
 $VERSION = $VER_CODE.Matches.Groups[1].Value;
 

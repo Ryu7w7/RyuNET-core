@@ -1,0 +1,15 @@
+meta {
+  name: Chart Version Check
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/nautica/version
+  body: none
+  auth: none
+}
+
+docs {
+  Returns a version hash of the current custom charts and the mix name. Used by the sync script to detect changes. No auth required.
+}

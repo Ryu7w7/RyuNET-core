@@ -33,9 +33,13 @@ tachiRouter.get('/config', (_req, res) => {
 tachiRouter.get('/callback', (req, res) => {
   const code = req.query.code as string;
   if (!code) return res.status(400).send('Missing authorization code');
+  
+  // Basic XSS sanitization (remove quotes/tags)
+  const safeCode = code.replace(/["'<>]/g, '');
+
   res.send(`<html><body><script>
     if (window.opener) {
-      window.opener.postMessage({ type: 'tachi-auth', code: '${code}' }, '*');
+      window.opener.postMessage({ type: 'tachi-auth', code: '${safeCode}' }, window.location.origin);
     }
     window.close();
   </script><p>Authorization complete. You can close this window.</p></body></html>`);
@@ -654,5 +658,152 @@ tachiRouter.get(
     }));
 
     res.json({ success: true, scores });
+  })
+);
+
+tachiRouter.post(
+  '/sync',
+  json({ limit: '1mb' }),
+  wrap(async (req, res) => {
+    const username = req.session.user!.username;
+    const cardNumber = req.session.user!.cardNumber;
+
+    // Get Tachi token
+    const tachiToken = await GetTachiToken(username);
+    if (!tachiToken) {
+      return res.status(400).json({ success: false, description: 'Not authorized with Tachi. Connect Tachi from the WebUI first.' });
+    }
+
+    // Resolve refid
+    if (!cardNumber) {
+      return res.status(400).json({ success: false, description: 'No card number linked to account' });
+    }
+    const card = await FindCard(cardNumber);
+    if (!card || !card.__refid) {
+      return res.status(400).json({ success: false, description: 'No profile found for card' });
+    }
+    const refid = card.__refid;
+
+    // Get local SDVX scores
+    const plugin = { identifier: 'sdvx@asphyxia', core: false };
+    const allScores = await APIFind(plugin, refid, { collection: 'music' });
+    if (!allScores || allScores.length === 0) {
+      return res.json({ success: true, exported: 0, description: 'No scores to export' });
+    }
+
+    // Filter by export timestamp
+    const lastExport = await GetTachiExportTimestamp(refid);
+    const scoresToExport = lastExport
+      ? allScores.filter((s: any) => {
+          const updated = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+          const created = s.createdAt ? new Date(s.createdAt).getTime() : 0;
+          return Math.max(updated, created) > lastExport;
+        })
+      : allScores;
+
+    if (scoresToExport.length === 0) {
+      return res.json({ success: true, exported: 0, description: 'No new scores since last export' });
+    }
+
+    // Detect version
+    const v7Profile = await APIFindOne(plugin, refid, { collection: 'profile', version: 7 });
+    const isNabla = !!v7Profile;
+
+    // Map scores to Tachi batch-manual format
+    const EG_CLEAR_TO_LAMP: Record<number, string> = {
+      0: 'FAILED', 1: 'FAILED', 2: 'CLEAR', 3: 'EXCESSIVE CLEAR',
+      4: 'ULTIMATE CHAIN', 5: 'PERFECT ULTIMATE CHAIN', 6: 'MAXXIVE CLEAR',
+    };
+    const NABLA_CLEAR_TO_LAMP: Record<number, string> = {
+      0: 'FAILED', 1: 'FAILED', 2: 'CLEAR', 3: 'EXCESSIVE CLEAR',
+      4: 'MAXXIVE CLEAR', 5: 'ULTIMATE CHAIN', 6: 'PERFECT ULTIMATE CHAIN',
+    };
+    const clearToLamp = isNabla ? NABLA_CLEAR_TO_LAMP : EG_CLEAR_TO_LAMP;
+
+    const TYPE_TO_DIFF: Record<number, string> = {
+      0: 'NOV', 1: 'ADV', 2: 'EXH', 3: 'INF', 4: 'MXM', 5: 'ULT',
+    };
+
+    const tachiScores: any[] = [];
+    for (const s of scoresToExport) {
+      const lamp = clearToLamp[s.clear];
+      const diff = TYPE_TO_DIFF[s.type];
+      if (!lamp || diff === undefined) continue;
+      if (s.score <= 0) continue; // Don't export zero-score entries
+
+      const entry: any = {
+        score: s.score,
+        lamp,
+        matchType: 'inGameID',
+        identifier: String(s.mid),
+        difficulty: diff,
+      };
+      if (s.timeAchieved || s.createdAt) {
+        entry.timeAchieved = s.timeAchieved || new Date(s.createdAt).getTime();
+      }
+      if (s.exscore) entry.optional = { exScore: s.exscore };
+      tachiScores.push(entry);
+    }
+
+    if (tachiScores.length === 0) {
+      return res.json({ success: true, exported: 0, description: 'No valid scores to export' });
+    }
+
+    // Build batch-manual payload and send to Tachi
+    const batchManual = JSON.stringify({
+      meta: { game: 'sdvx', playtype: 'Single', service: 'Asphyxia' },
+      scores: tachiScores,
+    });
+
+    const https = require('https');
+    const boundary = '----AsphyxiaTachi' + Date.now();
+    const bodyParts = [
+      `--${boundary}\r\n`,
+      `Content-Disposition: form-data; name="importType"\r\n\r\n`,
+      `file/batch-manual\r\n`,
+      `--${boundary}\r\n`,
+      `Content-Disposition: form-data; name="scoreData"; filename="scores.json"\r\n`,
+      `Content-Type: application/json\r\n\r\n`,
+      batchManual + '\r\n',
+      `--${boundary}--\r\n`,
+    ];
+    const postData = Buffer.from(bodyParts.join(''));
+
+    const importResult: any = await new Promise((resolve, reject) => {
+      const importReq = https.request(
+        `${TACHI_BASE_URL}/api/v1/import/file`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${tachiToken}`,
+            'Content-Type': `multipart/form-data; boundary=${boundary}`,
+            'Content-Length': postData.length,
+            'X-User-Intent': 'true',
+          },
+        },
+        (importRes: any) => {
+          let body = '';
+          importRes.on('data', (chunk: string) => (body += chunk));
+          importRes.on('end', () => {
+            try { resolve(JSON.parse(body)); }
+            catch { reject(new Error('Failed to parse Tachi import response')); }
+          });
+        }
+      );
+      importReq.on('error', reject);
+      importReq.write(postData);
+      importReq.end();
+    });
+
+    if (importResult.success) {
+      await SaveTachiExportTimestamp(refid, Date.now());
+    }
+
+    res.json({
+      success: importResult.success,
+      description: importResult.description || (importResult.success ? 'Export complete' : 'Export failed'),
+      exported: tachiScores.length,
+      body: importResult.body,
+    });
   })
 );

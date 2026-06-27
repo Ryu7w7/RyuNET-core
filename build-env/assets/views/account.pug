@@ -72,3 +72,82 @@ block content
                     span.icon.is-small
                       i.mdi.mdi-content-save
                     span Save
+
+        .card.mt-5
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-key-variant
+              | API Token
+          .card-content
+            p.mb-3 Generate an API token to use with external tools like a Discord bot. One token per account.
+            #api-token-status(style="margin-bottom:1.5rem")
+              p.has-text-grey Loading...
+            #api-token-display(style="display:none;margin-top:1rem")
+              .notification.is-warning.is-light
+                p
+                  strong Copy this token now — it will not be shown again:
+                pre#api-token-value(style="word-break:break-all; user-select:all; cursor:pointer")
+            .buttons(style="margin-top:1.5rem")
+              button#btn-generate-token.button.is-link
+                span.icon.is-small
+                  i.mdi.mdi-key-plus
+                span Generate Token
+              button#btn-revoke-token.button.is-danger(style="display:none")
+                span.icon.is-small
+                  i.mdi.mdi-key-remove
+                span Revoke Token
+
+    script.
+      (function() {
+        var statusEl = document.getElementById('api-token-status');
+        var displayEl = document.getElementById('api-token-display');
+        var valueEl = document.getElementById('api-token-value');
+        var genBtn = document.getElementById('btn-generate-token');
+        var revokeBtn = document.getElementById('btn-revoke-token');
+
+        function checkStatus() {
+          fetch('/account/api-token/status')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+              if (d.exists) {
+                statusEl.innerHTML = '<p class="has-text-success"><span class="icon"><i class="mdi mdi-check-circle"></i></span> API token is active.</p>';
+                genBtn.style.display = 'none';
+                revokeBtn.style.display = '';
+              } else {
+                statusEl.innerHTML = '<p class="has-text-grey"><span class="icon"><i class="mdi mdi-close-circle"></i></span> No API token set.</p>';
+                genBtn.style.display = '';
+                revokeBtn.style.display = 'none';
+              }
+            });
+        }
+        checkStatus();
+
+        genBtn.addEventListener('click', function() {
+          genBtn.classList.add('is-loading');
+          fetch('/account/api-token', { method: 'POST', headers: { 'Accept': 'application/json' } })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+              genBtn.classList.remove('is-loading');
+              if (d.success && d.token) {
+                valueEl.textContent = d.token;
+                displayEl.style.display = '';
+                checkStatus();
+              } else {
+                alert('Failed to generate token: ' + (d.description || 'Unknown error'));
+              }
+            });
+        });
+
+        revokeBtn.addEventListener('click', function() {
+          if (!confirm('Revoke API token? Any services using it will stop working.')) return;
+          revokeBtn.classList.add('is-loading');
+          fetch('/account/api-token/revoke', { method: 'POST', headers: { 'Accept': 'application/json' } })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+              revokeBtn.classList.remove('is-loading');
+              displayEl.style.display = 'none';
+              checkStatus();
+            });
+        });
+      })();

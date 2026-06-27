@@ -1,0 +1,15 @@
+meta {
+  name: Download All Charts (ZIP)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/api/nautica/download-all
+  body: none
+  auth: none
+}
+
+docs {
+  Downloads a ZIP of all curated custom charts (data_mods/asphyxia_custom). No auth required.
+}

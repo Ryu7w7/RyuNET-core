@@ -17,7 +17,7 @@ export const authRouter = Router();
 // Rate limiting for auth routes to prevent brute-force
 const authLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // Limit each IP to 20 requests per window
+  max: 10, // Limit each IP to 10 requests per window
   message: 'Too many login/signup attempts from this IP, please try again after 15 minutes',
 });
 
