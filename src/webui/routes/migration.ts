@@ -2,7 +2,7 @@ import { Router, json } from 'express';
 import path from 'path';
 import { readFileSync, existsSync } from 'fs';
 import archiver from 'archiver';
-const { serialize: nedbSerialize } = require('@seald-io/nedb/lib/model.js');
+import { serializeDoc as nedbSerialize } from '../../utils/NedbFormat';
 import {
   PLUGIN_PATH,
   APIFindOne,
@@ -144,44 +144,76 @@ migrationRouter.post(
     if (!isAdmin && !isOwner) return res.sendStatus(403);
 
     const plugin = { identifier: 'sdvx@asphyxia', core: false };
-    let saved = 0, skipped = 0;
+    let saved = 0, skipped = 0, inserted = 0;
 
     const rankMaps: any = { 6: { 0:0, 1:1, 2:2, 3:3, 6:4, 4:5, 5:6 }, 7: { 0:0, 1:1, 2:2, 3:3, 4:4, 5:5, 6:6 } };
     const getClearRank = (c: number, v: number) => (rankMaps[v] || rankMaps[6])[c] ?? 0;
 
+    // Detect what versions the user has profiles for (to sync scores across Exceed Gear / Valkyrie)
+    let versions = [6];
+    try {
+      const profiles = await APIFind(plugin, refid, { collection: 'profile' });
+      if (profiles && profiles.length > 0) {
+        const pVersions = profiles.map((p: any) => p.version).filter((v: any) => typeof v === 'number');
+        if (pVersions.length > 0) versions = Array.from(new Set(pVersions));
+      }
+    } catch { /* fallback to [6] */ }
+
     for (const s of scores) {
       try {
-        const existing = await APIFind(plugin, refid, { collection: 'music', mid: s.mid, type: s.type, version: s.version || 6 });
-        if (existing?.length > 0) {
-          const ex = existing[0];
-          const update: any = {};
-          if (s.score > ex.score) {
-            update.score = s.score;
-            update.buttonRate = s.buttonRate || 0;
-            update.longRate = s.longRate || 0;
-            update.volRate = s.volRate || 0;
-          }
-          if (getClearRank(s.clear, s.version||6) > getClearRank(ex.clear, ex.version||6)) update.clear = s.clear;
-          if (s.grade && (!ex.grade || s.grade > ex.grade)) update.grade = s.grade;
-          if (s.exscore && (!ex.exscore || s.exscore > ex.exscore)) update.exscore = s.exscore;
-          if (s.volforce && (!ex.volforce || s.volforce > ex.volforce)) update.volforce = s.volforce;
+        for (const v of versions) {
+          const existing = await APIFind(plugin, refid, { collection: 'music', mid: s.mid, type: s.type, version: v });
+          if (existing?.length > 0) {
+            const ex = existing[0];
+            const update: any = {};
+            if (s.score > ex.score) {
+              update.score = s.score;
+              update.buttonRate = s.buttonRate || 0;
+              update.longRate = s.longRate || 0;
+              update.volRate = s.volRate || 0;
+            }
+            if (getClearRank(s.clear, v) > getClearRank(ex.clear, ex.version||v)) update.clear = s.clear;
+            if (s.grade && (!ex.grade || s.grade > ex.grade)) update.grade = s.grade;
+            if (s.exscore && (!ex.exscore || s.exscore > ex.exscore)) update.exscore = s.exscore;
+            if (s.volforce && (!ex.volforce || s.volforce > ex.volforce)) update.volforce = s.volforce;
 
-          if (Object.keys(update).length > 0) {
-            await APIUpdate(plugin, refid, { collection: 'music', mid: s.mid, type: s.type, version: s.version || 6 }, { $set: update });
-            saved++;
-          } else skipped++;
-        } else {
-          await APIInsert(plugin, refid, {
-            collection: 'music', mid: s.mid, type: s.type, score: s.score || 0, clear: s.clear || 0,
-            exscore: s.exscore || 0, grade: s.grade || 0, buttonRate: s.buttonRate || 0,
-            longRate: s.longRate || 0, volRate: s.volRate || 0, volforce: s.volforce || 0,
-            version: s.version || 6, dbver: 1
-          });
-          saved++;
+            if (Object.keys(update).length > 0) {
+              await APIUpdate(plugin, refid, { collection: 'music', mid: s.mid, type: s.type, version: v }, { $set: update });
+              if (v === versions[0]) saved++;
+            } else {
+              if (v === versions[0]) skipped++;
+            }
+          } else {
+            // New record: seed playCount to 1 to reflect the import as at least one play.
+            await APIInsert(plugin, refid, {
+              collection: 'music', mid: s.mid, type: s.type, score: s.score || 0, clear: s.clear || 0,
+              exscore: s.exscore || 0, grade: s.grade || 0, buttonRate: s.buttonRate || 0,
+              longRate: s.longRate || 0, volRate: s.volRate || 0, volforce: s.volforce || 0,
+              version: v, dbver: 1, playCount: 1,
+            });
+            if (v === versions[0]) {
+              saved++;
+              inserted++;
+            }
+          }
         }
       } catch (err) { Logger.error(err); }
     }
-    res.json({ success: true, saved, skipped });
+
+    // Increment the SDVX profile play counter for newly inserted songs.
+    if (inserted > 0) {
+      for (const v of versions) {
+        try {
+          await APIUpdate(plugin, refid, { collection: 'profile', version: v }, {
+            $inc: { playCount: inserted },
+          });
+        } catch (err) {
+          Logger.error(`[SDVX Migrate] Failed to update playCount: ${err}`);
+        }
+      }
+    }
+
+    res.json({ success: true, saved, skipped, inserted });
   })
 );
 
@@ -233,6 +265,8 @@ migrationRouter.post(
     let updated = 0;
     let mergedCharts = 0;
     let skipped = 0;
+    // Play count deltas: SP = indices 0-4, DP = indices 5-9 in the 10-slot arrays.
+    let spAdded = 0, dpAdded = 0;
 
     for (const s of scores) {
       try {
@@ -299,7 +333,12 @@ migrationRouter.post(
             skipped++;
           }
         } else {
-          // New song record
+          // New song record — count plays from chart data.
+          // esArray indices 0-4 = SP charts, 5-9 = DP charts.
+          const esArr: number[] = Array.isArray(s.esArray) ? s.esArray : Array(10).fill(0);
+          if (esArr.slice(0, 5).some(v => v > 0)) spAdded++;
+          if (esArr.slice(5, 10).some(v => v > 0)) dpAdded++;
+
           await APIInsert(plugin, refid, {
             collection: 'score',
             ...s,
@@ -312,7 +351,21 @@ migrationRouter.post(
         Logger.error(`[IIDX Migrate] Error processing mid ${s.mid}: ${err}`);
       }
     }
-    res.json({ success: true, inserted, updated, mergedCharts, skipped });
+
+    // Increment the IIDX profile play counters for newly inserted songs.
+    // total_pc = sessions (we add 1 per song as a lower-bound estimate).
+    // total_kbd / total_scr = SP / DP songs.
+    if (spAdded + dpAdded > 0) {
+      try {
+        await APIUpdate(plugin, refid, { collection: 'profile' }, {
+          $inc: { total_pc: spAdded + dpAdded, total_kbd: spAdded, total_scr: dpAdded },
+        });
+      } catch (err) {
+        Logger.error(`[IIDX Migrate] Failed to update play counts: ${err}`);
+      }
+    }
+
+    res.json({ success: true, inserted, updated, mergedCharts, skipped, spAdded, dpAdded });
   })
 );
 

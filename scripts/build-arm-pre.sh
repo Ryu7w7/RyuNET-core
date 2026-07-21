@@ -1,6 +1,4 @@
 #!/bin/bash
-cd "$(dirname "$0")/.."
-
 
 mkdir -p build
 
@@ -9,21 +7,19 @@ regex='VERSION = '"'"'([a-z0-9.]*)'"'"''
 
 VERSION=${BASH_REMATCH[1]}
 
-
-
 echo "Building Version $VERSION for Arm"
 
 echo "NPM Install"
-npm ci
+npm ci --legacy-peer-deps
 
 echo "Building Typescripts"
 npx tsc
 
 echo "Packing index.js"
-npx ncc build ./dist/AsphyxiaCore.js -o ./build-env --external pug --external ts-node
+node ./node_modules/@vercel/ncc/dist/ncc/cli.js build ./dist/AsphyxiaCore.js -o ./build-env --external pug --external ts-node
 
 echo "Setting Up Build Environment"
 cd ./build-env
-npm ci
+npm ci --legacy-peer-deps
 cp -r typescript ./node_modules/
 

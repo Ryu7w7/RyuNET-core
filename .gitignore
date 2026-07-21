@@ -19,3 +19,12 @@ build-env/*
 nul
 plugins/
 config.ini
+
+# User data — never commit savedata or backups
+savedata/
+savedata_backup_*/
+
+# SQLite WAL/SHM temp files
+*.db-wal
+*.db-shm
+*.nedb.bak

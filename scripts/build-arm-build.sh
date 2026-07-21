@@ -1,17 +1,14 @@
 #!/bin/bash
-cd "$(dirname "$0")/.."
 
-
-chmod 777 /root
-mkdir /root/.pkg-cache
-chmod 777 /root/.pkg-cache
-
-export PKG_IGNORE_TAG=true # prevents pkg-fetch to add a tag folder
-cp ./build-env/pkg-cache/built-v16.16.0-linux-armv7 /root/.pkg-cache/built-v16.16.0-linux-armv7
-chmod 777 /root/.pkg-cache/built-v16.16.0-linux-armv7
-
-echo "Packing armv7"
-npx pkg ./build-env -t node16.16.0-linux-armv7 -o ./build/asphyxia-core-armv7 --options no-warnings
+# yao-pkg-fetch fetches Node 22 base binaries from the GitHub release
+# matching the requested target. armv7 prebuilds may be missing for the
+# latest Node — if so, this build will fail at the fetch step and the
+# armv7 target needs to be skipped or a custom prebuild dropped at
+# ~/.pkg-cache.
 
 echo "Packing arm64"
-npx pkg ./build-env -t node16.16.0-linux-arm64 -o ./build/asphyxia-core-arm64 --options no-warnings
+node ./node_modules/@yao-pkg/pkg/lib-es5/bin.js ./build-env -t node22-linux-arm64 -o ./build/asphyxia-core-arm64 --options "no-warnings,experimental-sqlite"
+
+echo "Packing armv7"
+node ./node_modules/@yao-pkg/pkg/lib-es5/bin.js ./build-env -t node22-linux-armv7 -o ./build/asphyxia-core-armv7 --options "no-warnings,experimental-sqlite" || \
+  echo "(armv7 prebuild not available for Node 22; skipping)"

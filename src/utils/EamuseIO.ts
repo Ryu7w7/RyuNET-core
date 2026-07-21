@@ -12,7 +12,7 @@ import {
 
 import { Logger } from './Logger';
 import path from 'path';
-import nedb from '@seald-io/nedb';
+import { SqliteStore } from './SqliteStore';
 import { nfc2card } from './CardCipher';
 import hashids from 'hashids/cjs';
 import bcrypt from 'bcryptjs';
@@ -33,54 +33,51 @@ export const ASSETS_PATH = path.join(pkg ? __dirname : `../build-env`, 'assets')
 export const SAVE_PATH = path.resolve(EXEC_PATH, ARGS.savedata);
 const COREDB_FILE = path.join(SAVE_PATH, 'core.db');
 
-const LoadDatabase = async (file: string) => {
-  const DB = new nedb({
-    filename: file,
-    timestampData: true,
-    corruptAlertThreshold: ARGS.fixdb ? 0.2 : 0,
-  });
-
-  const filename = path.basename(file);
+// Detect leftover NeDB / NDJSON saves (first non-whitespace byte is '{').
+const isLegacyNedbFile = (file: string): boolean => {
   try {
-    await DB.loadDatabaseAsync();
-    if (filename != 'core.db') Logger.info(`Database loaded: ${filename}`, { plugin: 'db' });
-  } catch (err) {
-    if (err) {
-      if (err.message && err.message.startsWith('More than')) {
-        if (ARGS.fixdb) {
-          Logger.error(
-            `Savedata "${filename}" is more than 20% corrupted. Which means the savedata might be beyond repair. Please delete the savefile in order to keep using CORE.`
-          );
-          process.exit(1);
-        } else {
-          Logger.error(
-            `Savedata "${filename}" corruption detected. Run with "--force-load-db" argument to force load data, and corrupted portion will be discarded. It is recommended to backup savedata before force loading.`
-          );
-          process.exit(1);
-        }
-      } else {
-        Logger.error(`Can not load database "${filename}":`);
-        Logger.error(err);
-      }
+    const fd = require('fs').openSync(file, 'r');
+    const buf = Buffer.alloc(16);
+    const n = require('fs').readSync(fd, buf, 0, 16, 0);
+    require('fs').closeSync(fd);
+    if (n <= 0) return false;
+    if (buf.toString('ascii', 0, 15) === 'SQLite format 3') return false;
+    for (let i = 0; i < n; i++) {
+      const c = buf[i];
+      if (c === 0x09 || c === 0x0a || c === 0x0d || c === 0x20) continue;
+      return c === 0x7b; // '{'
     }
-    return null;
+    return false;
+  } catch {
+    return false;
   }
+};
 
-  const value = await DB.countAsync({ __s: 'profile' });
-  if (value < 0) {
-    Logger.error('Profile indexes is corrupted. Can not load database.');
+const LoadDatabase = async (file: string) => {
+  const filename = path.basename(file);
+
+  if (existsSync(file) && isLegacyNedbFile(file)) {
+    Logger.error(
+      `Savedata "${filename}" is in the legacy NeDB format. Run "node --experimental-sqlite scripts/migrate-nedb-to-sqlite.js" to convert your savedata before starting the server.`
+    );
     process.exit(1);
   }
 
+  let DB: SqliteStore;
   try {
-    await DB.ensureIndexAsync({ fieldName: '__s' });
-    await DB.ensureIndexAsync({ fieldName: '__refid' });
-  } catch (err) {
-    Logger.error(err);
+    DB = new SqliteStore({ filename: file, timestampData: true });
+    await DB.loadDatabaseAsync();
+    if (filename != 'core.db') Logger.info(`Database loaded: ${filename}`, { plugin: 'db' });
+  } catch (err: any) {
+    Logger.error(`Can not load database "${filename}": ${err?.stack || err?.message || String(err)}`);
+    return null;
   }
 
+  await DB.ensureIndexAsync({ fieldName: '__s' });
+  await DB.ensureIndexAsync({ fieldName: '__refid' });
+
   try {
-    const docs = await DB.findAsync({ __s: 'plugins_profile' });
+    const docs = await DB.findAsync({ __s: 'plugins_profile' }).execAsync();
     const toRemove = docs.filter((d: any) => d.__refid === undefined);
     for (const d of toRemove) {
       await DB.removeAsync({ _id: d._id }, {});
@@ -92,7 +89,7 @@ const LoadDatabase = async (file: string) => {
   return DB;
 };
 
-let CoreDB: nedb = null;
+let CoreDB: SqliteStore = null;
 export const LoadCoreDB = async () => {
   CoreDB = await LoadDatabase(COREDB_FILE);
 
@@ -101,7 +98,7 @@ export const LoadCoreDB = async () => {
   }
 };
 
-const DBInstances: { [key: string]: nedb } = {};
+const DBInstances: { [key: string]: SqliteStore } = {};
 
 export const GET_DB = async (affiliation: string) => {
   if (!DBInstances[affiliation]) {
@@ -1099,6 +1096,53 @@ export async function GetProfiles() {
     Logger.error(err);
     return false;
   }
+}
+
+
+// Relay Nodes
+export async function UpsertRelayNode(data: {
+  ip: string;
+  portRange: string;
+  portMin: number;
+  portMax: number;
+  registeredBy: string;
+  registeredAt: number;
+  lastSeen: number;
+}): Promise<boolean> {
+  try {
+    const existing = await CoreDB.findOneAsync<any>({ __s: 'relay_node', ip: data.ip });
+    if (existing) {
+      await CoreDB.updateAsync({ __s: 'relay_node', ip: data.ip }, { $set: data });
+    } else {
+      await CoreDB.insertAsync({ __s: 'relay_node', ...data });
+    }
+    return true;
+  } catch (err) {
+    Logger.error(err);
+    return false;
+  }
+}
+
+export async function GetRelayNodes(): Promise<any[]> {
+  try {
+    const threshold = Date.now() - 5 * 60 * 1000;
+    return await CoreDB.findAsync<any>({
+      __s: 'relay_node',
+      lastSeen: { $gt: threshold },
+    }).execAsync();
+  } catch (err) {
+    Logger.error(err);
+    return [];
+  }
+}
+
+export async function TouchRelayNode(ip: string): Promise<void> {
+  try {
+    await CoreDB.updateAsync(
+      { __s: 'relay_node', ip },
+      { $set: { lastSeen: Date.now() } }
+    );
+  } catch { }
 }
 
 // Public API

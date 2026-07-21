@@ -4,6 +4,13 @@ A fork of [asphyxia-core](https://github.com/asphyxia-core/core) with additional
 
 Some of the core changes were made specifically to support a forked SDVX plugin. The plugin is maintained in a separate repository: [Ryu7w7/asphyxia_plugins](https://github.com/Ryu7w7/asphyxia_plugins), which is itself a fork of [22vv0's plugin](https://github.com/22vv0/asphyxia_plugins).
 
+> [!IMPORTANT]
+> This fork uses **SQLite** as its database backend instead of NeDB. If you are upgrading from an older version of this core (or from upstream Asphyxia), you **must** run the migration script before starting the server. See [Migrating from NeDB](#migrating-from-nedb) below.
+
+## Requirements
+
+- **Node.js >= 22.5** (required for the built-in `node:sqlite` module)
+
 ## Credits
 
 - **[Team Asphyxia](https://github.com/asphyxia-core)** - Original Asphyxia Core and plugins
@@ -76,6 +83,7 @@ Log in to the WebUI and change the admin password immediately. If your server is
 - **Strict PCBID Security**: Optional enforcement to reject connections from unauthorized hardware.
 - **Automatic Card Binding**: If a user logs in from a registered Cabinet without a card, their first used card is automatically bound to their account.
 - **e-amusement cloud (Konaste) support**: Native protocol support for official PC/Cloud game clients.
+- **SQLite backend**: Replaced NeDB with a SQLite-backed store for significantly better performance and reliability at scale.
 
 ### Core changes for the SDVX plugin
 These are server-side changes in this repository that support the [forked SDVX plugin](https://github.com/Ryu7w7/asphyxia_plugins).
@@ -89,3 +97,65 @@ These are server-side changes in this repository that support the [forked SDVX p
 - Hidden data delete buttons for non-admin users
 - New "Cabinets" section for users to manage their registered hardware.
 - Discord login/linking buttons on auth and account pages.
+
+---
+
+## Migrating from NeDB
+
+If you are upgrading from an older version that used NeDB (`.db` files in NDJSON format), you must convert your savedata before starting the new core. The server will refuse to start if it detects legacy NeDB files.
+
+> [!CAUTION]
+> Always back up your `savedata/` directory before running the migration. The script creates an automatic backup, but an extra copy never hurts.
+
+### Requirements
+
+- Node.js >= 22.5
+
+### Windows
+
+```powershell
+# From the core root directory
+.\scripts\migrate-deploy.ps1
+
+# Or specify savedata path manually
+.\scripts\migrate-deploy.ps1 -SavedataDir "C:\path\to\savedata"
+```
+
+### Linux / ARM (VPS)
+
+```bash
+# Make the script executable
+chmod +x scripts/migrate-deploy.sh
+
+# Run (auto-detects savedata directory)
+bash scripts/migrate-deploy.sh
+
+# Or specify savedata path manually
+bash scripts/migrate-deploy.sh /path/to/savedata
+```
+
+The script will:
+1. Verify your Node.js version
+2. List all `.db` files to be migrated
+3. Create a timestamped backup (e.g. `savedata_backup_20250720_153000/`)
+4. Ask for confirmation before making any changes
+5. Convert each file from NDJSON to SQLite format in-place
+6. Print rollback instructions if anything goes wrong
+
+The migration is **idempotent** — files already in SQLite format are skipped automatically.
+
+### Rollback
+
+Each original `.db` file is preserved with a `.nedb.bak` suffix inside the savedata directory. The deploy scripts also create a full directory backup. To roll back:
+
+```bash
+# Linux
+rm -rf savedata/
+mv savedata_backup_YYYYMMDD_HHMMSS/ savedata/
+```
+
+```powershell
+# Windows
+Remove-Item -Recurse savedata
+Rename-Item savedata_backup_YYYYMMDD_HHMMSS savedata
+```

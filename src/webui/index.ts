@@ -28,6 +28,7 @@ import { discordRouter } from './routes/discord';
 import { cabinetsRouter } from './routes/cabinets';
 import { richPresenceRouter } from './routes/richpresence';
 import { nablaRouter } from './routes/nabla';
+import { launcherRouter } from './routes/launcher';
 
 // Shared
 import { authMiddleware, bearerTokenMiddleware } from './shared/middleware';
@@ -48,9 +49,9 @@ function getSessionSecret(): string {
       const stored = readFileSync(secretPath, 'utf8').trim();
       if (stored.length >= 32) return stored;
     }
-  } catch {}
+  } catch { }
   const secret = crypto.randomBytes(32).toString('hex');
-  try { writeFileSync(secretPath, secret, 'utf8'); } catch {}
+  try { writeFileSync(secretPath, secret, 'utf8'); } catch { }
   return secret;
 }
 
@@ -103,7 +104,10 @@ webui.use(nauticaRouter); // SDVX Custom Charts / Drive endpoints
 webui.use(discordRouter); // Discord login / linking
 webui.use(richPresenceRouter); // SDVX Rich Presence name lookup (public, read-only)
 
-// --- Protected Routes ---
+// Launcher API
+webui.use(launcherRouter);
+
+// Protected Routes
 webui.use(bearerTokenMiddleware);
 webui.use(authMiddleware);
 
