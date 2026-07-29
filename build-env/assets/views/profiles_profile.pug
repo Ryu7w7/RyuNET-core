@@ -1,6 +1,13 @@
 extends _layout.pug
 
 block head
+  meta(property="og:site_name" content="RyuNET")
+  meta(property="og:title" content=`${profile.name} · player info`)
+  meta(property="og:description" content=ogDescription)
+  meta(property="og:image" content=ogImage)
+  meta(name="theme-color" content="#00d1b2")
+  meta(name="twitter:card" content="summary")
+
 
   style.
     .profile-header {

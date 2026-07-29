@@ -591,6 +591,15 @@ profileRouter.get(
       }
     }
 
+    const fullHost = req.protocol + '://' + req.get('host');
+    let ogDescription = "No data available yet.";
+    if (sdvxRank && (sdvxRank.globalRank || sdvxRank.countryRank)) {
+      const gRank = sdvxRank.globalRank ? `#${sdvxRank.globalRank.toLocaleString()}` : "N/A";
+      const cRank = sdvxRank.countryRank ? `#${sdvxRank.countryRank.toLocaleString()}` : "N/A";
+      ogDescription = `SDVX - Rank Global: ${gRank} | Country ${cRank}`;
+    }
+    const ogImage = profile.avatarUrl ? `${fullHost}/uploads/${profile.avatarUrl}` : `${fullHost}/static/img/avatar.jpg`;
+
     res.render(
       'profiles_profile',
       data(req, profile.name, 'core', {
@@ -609,6 +618,8 @@ profileRouter.get(
         accountCreatedAt,
         accountLastLogin,
         accountUsername,
+        ogDescription,
+        ogImage,
       })
     );
   })
