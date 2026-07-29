@@ -229,7 +229,9 @@ const editRateLimit = rateLimit({
 
 export const profileRouter = Router();
 
-// Alias Resolver: Allows using a username instead of a 16-hex refid in the URL
+// Alias Resolver: Allows using a username instead of a 16-hex refid in the URL.
+// The resolver is PERMISSIVE — it tries any non-refid string as a username lookup.
+// The redirect (in the GET route below) is STRICT — only redirects for URL-safe names.
 profileRouter.param('refid', async (req: any, res: any, next: any, id: string) => {
   try {
     // If it's a 16 hex character string, treat it as a refid — no lookup needed
@@ -237,13 +239,12 @@ profileRouter.param('refid', async (req: any, res: any, next: any, id: string) =
       return next();
     }
 
-    // Sanitize: reject anything that's not a plausible username (length, allowed chars)
-    // Usernames should only have alphanumeric, underscore, hyphen (same as redirect check)
-    if (!id || id.length > 64 || !/^[\w\-]+$/.test(id)) {
-      return next(); // Will 404 naturally if profile not found
+    // Basic safety: reject excessively long inputs
+    if (!id || id.length > 100) {
+      return next();
     }
 
-    // Treat as a username alias
+    // Try to treat as a username alias — supports any username including emails (e.g. user@example.com)
     const user = await FindUserByUsername(id);
     if (user && user.cardNumber) {
       const card = await FindCard(user.cardNumber);
@@ -254,7 +255,7 @@ profileRouter.param('refid', async (req: any, res: any, next: any, id: string) =
       }
     }
 
-    // Alias not found — proceed (will 404 naturally)
+    // Alias not found — proceed (will 404 naturally if no profile exists)
     return next();
   } catch (err) {
     return next(err);
