@@ -129,6 +129,14 @@ authRouter.post(
       return res.render('signup', { error: 'Username must be at least 3 characters.', old });
     }
 
+    if (username.length > 32) {
+      return res.render('signup', { error: 'Username must be 32 characters or fewer.', old });
+    }
+
+    if (!/^[\w\-.@]+$/.test(username)) {
+      return res.render('signup', { error: 'Username can only contain letters, numbers, underscores, hyphens, dots, and @. Characters like # are not allowed.', old });
+    }
+
     if (password.length < 4) {
       return res.render('signup', { error: 'Password must be at least 4 characters.', old });
     }

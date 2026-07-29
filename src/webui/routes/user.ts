@@ -63,6 +63,14 @@ userRouter.post(
         req.flash('formWarn', 'Username must be at least 3 characters.');
         return res.redirect('/account');
       }
+      if (username.length > 32) {
+        req.flash('formWarn', 'Username must be 32 characters or fewer.');
+        return res.redirect('/account');
+      }
+      if (!/^[\w\-.@]+$/.test(username)) {
+        req.flash('formWarn', 'Username can only contain letters, numbers, underscores, hyphens, dots, and @. Characters like # are not allowed.');
+        return res.redirect('/account');
+      }
       const existing = await FindUserByUsername(username);
       if (existing) {
         req.flash('formWarn', 'Username already taken.');
