@@ -1,6 +1,29 @@
 extends _layout.pug
 
 block content
+  style.
+    .tier-lustrous { background: linear-gradient(90deg, #ff8a00, #e52e71, #ff00ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900 !important; }
+    .tier-radiant { color: #55ffff !important; font-weight: 800 !important; text-shadow: 0 0 8px rgba(85,255,255,0.4); }
+    .tier-rhodium { color: #ff99cc !important; font-weight: 800 !important; }
+    .tier-platinum { color: #00e5ff !important; font-weight: 800 !important; }
+    .tier-gold { color: #ffd700 !important; font-weight: 700 !important; }
+    .tier-silver { color: #c0c0c0 !important; font-weight: 600 !important; }
+    .tier-bronze { color: #cd7f32 !important; font-weight: 600 !important; }
+    .tier-iron { color: #a19d94 !important; font-weight: 600 !important; }
+
+  - const getRankTier = (rank, total) => {
+  -   if (!rank || !total) return '';
+  -   if (rank <= 3) return 'tier-lustrous';
+  -   if (rank <= 10) return 'tier-radiant';
+  -   if (rank <= 25) return 'tier-rhodium';
+  -   if (rank <= 50) return 'tier-platinum';
+  -   const pct = rank / total;
+  -   if (pct <= 0.20) return 'tier-gold';
+  -   if (pct <= 0.40) return 'tier-silver';
+  -   if (pct <= 0.70) return 'tier-bronze';
+  -   return 'tier-iron';
+  - }
+
   section.section.is-main-section
     .box(style="position: relative; z-index: 100;")
       h2.title.is-4 Global Leaderboard
@@ -178,13 +201,23 @@ block content
                           span(title="2nd Place") 🥈
                         else if rank === 3
                           span(title="3rd Place") 🥉
-                      strong(style="display: inline-block; width: 44px; text-align: left; margin-left: 6px; font-size: 1.15rem;") ##{rank}
+                      strong(style="display: inline-block; width: 44px; text-align: left; margin-left: 6px; font-size: 1.15rem;" class=getRankTier(rank, isFiltered ? totalPlayers : globalTotalPlayers)) ##{rank}
                       if isFiltered && r.globalRank
-                        div(style="font-size: 0.75rem; color: var(--muted); margin-top: 2px;") (Global ##{r.globalRank})
+                        div(style="font-size: 0.75rem; color: var(--muted); margin-top: 2px;" class=getRankTier(r.globalRank, globalTotalPlayers)) (Global ##{r.globalRank})
 
-                  td(style="vertical-align: middle; padding: 1rem 1.5rem; text-align: left;")
-                    span.fi(class="fi-" + (r.countryCode || 'xx') style="margin-right: 8px; font-size: 1.15rem; border-radius: 2px;")
-                    strong(style="color: var(--info); font-size: 1.15rem; letter-spacing: 0.5px;") #{r.name}
+                  td(style="vertical-align: middle; padding: 0.6rem 1.5rem; text-align: left;")
+                    a(href=`/profile/${r.refid}` style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;")
+                      .lb-avatar(style="width:36px; height:36px; border-radius:8px; overflow:hidden; flex-shrink:0; background:#222; border: 2px solid rgba(255,255,255,0.1);")
+                        if r.avatarUrl
+                          img(src=`/uploads/${r.avatarUrl}` style="width:100%; height:100%; object-fit:cover;")
+                        else
+                          img(src="/static/img/avatar.jpg" style="width:100%; height:100%; object-fit:cover;")
+                      .is-flex.is-align-items-center
+                        if r.countryCode && r.countryCode !== 'xx'
+                          span.fi(class="fi-" + r.countryCode style="margin-right: 0.5rem; font-size:1rem; border-radius:2px;")
+                        else
+                          span(style="margin-right: 0.5rem; font-size:1.1rem;") 🌎
+                        strong(style="font-size: 1.1rem; letter-spacing: 0.5px;" class=getRankTier(rank, isFiltered ? totalPlayers : globalTotalPlayers)) #{r.name}
 
                   if game == 'sdvx'
                     td(style="vertical-align: middle; padding: 1rem 0; text-align: center;")

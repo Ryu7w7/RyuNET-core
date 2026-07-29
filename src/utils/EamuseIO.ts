@@ -529,6 +529,8 @@ export async function CreateUserAccount(
       countryCode,
       discordId,
       discordUsername,
+      createdAt: Date.now(),
+      lastLogin: Date.now(),
     });
   } catch (err) {
     Logger.error(err);
@@ -551,7 +553,7 @@ export async function AuthenticateUser(username: string, password: string) {
 
 export async function UpdateUserAccount(
   username: string,
-  update: { username?: string; password?: string; countryCode?: string | null; cardNumber?: string; discordId?: string; discordUsername?: string }
+  update: { username?: string; password?: string; countryCode?: string | null; cardNumber?: string; discordId?: string; discordUsername?: string; lastLogin?: number }
 ) {
   try {
     const setFields: any = {};
@@ -562,6 +564,7 @@ export async function UpdateUserAccount(
     if (update.discordId !== undefined) setFields.discordId = update.discordId;
     if (update.discordUsername !== undefined) setFields.discordUsername = update.discordUsername;
 
+    if (update.lastLogin !== undefined) setFields.lastLogin = update.lastLogin;
     await CoreDB.updateAsync({ __s: 'user_account', username }, { $set: setFields });
 
     if (update.username && update.username !== username) {

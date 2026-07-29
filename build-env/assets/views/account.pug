@@ -14,7 +14,7 @@ block content
             form(method="post" action="/account")
               .field.is-horizontal
                 .field-label.is-normal
-                  label.label Username
+                  label.label Web Login Username
                 .field-body
                   .field
                     .control.has-icons-left
@@ -72,6 +72,49 @@ block content
                     span.icon.is-small
                       i.mdi.mdi-content-save
                     span Save
+                    
+        if profile
+          .card.mt-5
+            header.card-header
+              p.card-header-title
+                span.icon
+                  i.mdi.mdi-account-details
+                | Profile Details
+            .card-content
+              form(method="post" action="/account/profile")
+                .field.is-horizontal.is-narrow(data-tooltip="Only used in WebUI")
+                  .field-label.is-normal
+                    label.label Profile Display Name
+                  .field-body
+                    .field
+                      .control.has-icons-left
+                        input.input#name-input(type='text' placeholder=profile.name name='name')
+                        span.icon.is-small.is-left
+                          i.mdi.mdi-account
+                .field.is-horizontal.is-narrow
+                  .field-label.is-normal
+                    label.label PIN
+                  .field-body
+                    .field
+                      .control.has-icons-left
+                        input.input(type='password' size='4' maxlength='4' placeholder='••••' name='pin')
+                        span.icon.is-small.is-left
+                          i.mdi.mdi-dialpad
+                .field.is-horizontal.is-narrow(data-tooltip="Set custom PASELI balance (0 - 100000)")
+                  .field-label.is-normal
+                    label.label Balance
+                  .field-body
+                    .field
+                      .control.has-icons-left
+                        input.input#paseli-input(type='number' min='0' max='100000' placeholder=(profile.paseli != null ? profile.paseli : '10000') name='paseli')
+                        span.icon.is-small.is-left
+                          i.mdi.mdi-currency-usd
+                .field.is-grouped.is-grouped-right
+                  .control
+                    button.button.is-link(type='submit')
+                      span.icon.is-small
+                        i.mdi.mdi-pencil
+                      span Update Profile
 
         .card.mt-5
           header.card-header

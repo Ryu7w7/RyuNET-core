@@ -1,0 +1,53 @@
+extends _layout.pug
+
+block content
+  section.section.is-main-section
+    .columns
+      .column.is-8.is-offset-2
+        .card
+          header.card-header
+            p.card-header-title
+              span.icon
+                i.mdi.mdi-credit-card
+              | Cards
+          .card-content
+            form(method='post' action='/cards')
+              .field.is-horizontal.is-narrow
+                .field-label.is-normal
+                  label.label Add Card
+                .field-body
+                  .field.has-addons
+                    .control.is-expanded
+                      input.input#card-input(type='text' placeholder='Card Number' name='card' maxlength='16')
+                    .control
+                      button.button.is-primary#add-card(type='submit')
+                        span.icon.is-small
+                          i.mdi.mdi-plus
+                        span Add
+            if formMessage
+              if formMessage.danger
+                .notification.is-danger.is-light #{formMessage.message}
+              else
+                .notification.is-success.is-light #{formMessage.message}
+            hr
+            if profileCards && profileCards.length > 0
+              .columns.is-multiline
+                each card, index in profileCards
+                  .column.is-half
+                    .ecard.box.is-paddingless(geopattern=card.cid style="position: relative;")
+                      .ecard-brand RyuNET
+                      .ecard-print
+                        .desc Card Number
+                        .print #{card.print.replace(/[^a-z0-9]+/gi, '').replace(/(.{4})/g, '$1 ')}
+                      .ecard-number
+                        .desc NFC
+                        .print #{card.cid}
+                      .ecard-logo
+                      if index !== 0
+                        button.button.is-danger.ecard-delete(deleting=card.cid data-tooltip="Delete this card" style="position: absolute; right: 10px; bottom: 10px; z-index: 10;")
+                          span.icon
+                            i.mdi.mdi-trash-can.mdi-24px
+            else
+              p.has-text-grey No cards linked to this profile.
+block scripts
+  script(type="text/javascript" src="/static/js/profile.js")

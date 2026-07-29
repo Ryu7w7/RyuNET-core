@@ -93,6 +93,9 @@ authRouter.post(
       }
     }
 
+    // Track last login
+    await UpdateUserAccount(user.username, { lastLogin: Date.now() });
+
     req.session.user = {
       username: user.username,
       cardNumber: user.cardNumber,

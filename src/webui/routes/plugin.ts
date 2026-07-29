@@ -114,15 +114,19 @@ pluginRouter.get(
 
     const isAdmin = req.session.user!.admin;
     const isOwner = await userOwnsProfile(req, refid.toString());
-    const ownerOnlyPages = ['profile_tachi', 'profile_nabla', 'profile_migrate'];
-    if (ownerOnlyPages.includes(page) && !isAdmin && !isOwner) {
+    // Any profile sub-page whose name contains 'settings' or 'migrate' is owner-only.
+    // Explicitly protected pages are also included in this list.
+    const isOwnerOnlyPage = (p: string) =>
+      ['profile_tachi', 'profile_nabla', 'profile_migrate'].includes(p) ||
+      p.includes('settings') || p.includes('setting') || p.includes('migrate');
+    if (isOwnerOnlyPage(page) && !isAdmin && !isOwner) {
       return res.redirect(`/plugin/${req.params['plugin']}/profile?refid=${refid}`);
     }
 
     const content = await plugin.render(page, { query: req.query }, refid.toString());
     if (content == null) return next();
 
-    const tabs = plugin.ProfilePages.filter(p => !ownerOnlyPages.includes(p) || isAdmin || isOwner).map(p => ({
+    const tabs = plugin.ProfilePages.filter(p => !isOwnerOnlyPage(p) || isAdmin || isOwner).map(p => ({
       name: startCase(p.substr(8)),
       link: p.substr(8),
     }));

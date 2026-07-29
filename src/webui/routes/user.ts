@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, urlencoded } from 'express';
 import {
   FindUserByUsername,
   UpdateUserAccount,
@@ -8,9 +8,13 @@ import {
   GetApiTokenExists,
   DeleteApiToken,
   FindCard,
-  FindProfile,
   GetAllCabinets,
   FindUserByCardNumber,
+  UpdateProfile,
+  FindCardsByRefid,
+  CreateCard,
+  FindProfile,
+  DeleteCard,
 } from '../../utils/EamuseIO';
 import { json } from 'body-parser';
 import { wrap, adminMiddleware } from '../shared/middleware';
@@ -23,7 +27,16 @@ userRouter.get(
   '/account',
   wrap(async (req, res) => {
     const fullUser = await FindUserByUsername(req.session.user!.username);
-    res.render('account', data(req, 'Account', 'core', { fullUser }));
+    let profile = null;
+    
+    if (fullUser.cardNumber) {
+      const card = await FindCard(fullUser.cardNumber);
+      if (card && card.__refid) {
+        profile = await FindProfile(card.__refid);
+      }
+    }
+
+    res.render('account', data(req, 'Account', 'core', { fullUser, profile }));
   })
 );
 
@@ -97,6 +110,92 @@ userRouter.post(
     }
 
     res.redirect('/account');
+  })
+);
+
+userRouter.post(
+  '/account/profile',
+  wrap(async (req, res) => {
+    const fullUser = await FindUserByUsername(req.session.user!.username);
+    if (!fullUser || !fullUser.cardNumber) {
+      req.flash('formWarn', 'You must link a card number before setting up a profile.');
+      return res.redirect('/account');
+    }
+
+    const card = await FindCard(fullUser.cardNumber);
+    if (!card || !card.__refid) {
+      req.flash('formWarn', 'No profile found for your card number. Please play a game first.');
+      return res.redirect('/account');
+    }
+
+    const update: any = {};
+    if (req.body.pin) update.pin = req.body.pin;
+    if (req.body.name) update.name = req.body.name;
+    if (req.body.paseli !== undefined && req.body.paseli !== '') {
+      let paseli = parseInt(String(req.body.paseli), 10);
+      if (!isNaN(paseli)) {
+        paseli = Math.max(0, Math.min(100000, paseli));
+        update.paseli = paseli;
+      }
+    }
+
+    if (Object.keys(update).length > 0) {
+      await UpdateProfile(card.__refid, update);
+      req.flash('formOk', 'Profile details updated.');
+    }
+    
+    res.redirect('/account');
+  })
+);
+
+userRouter.get(
+  '/cards',
+  wrap(async (req, res) => {
+    const fullUser = await FindUserByUsername(req.session.user!.username);
+    if (!fullUser || !fullUser.cardNumber) {
+      req.flash('formWarn', 'You must link a card number before managing cards.');
+      return res.redirect('/account');
+    }
+
+    const card = await FindCard(fullUser.cardNumber);
+    if (!card || !card.__refid) {
+      req.flash('formWarn', 'No profile found for your card number. Please play a game first.');
+      return res.redirect('/account');
+    }
+
+    const profileCards = await FindCardsByRefid(card.__refid);
+    res.render('cards', data(req, 'Cards', 'core', { profileCards, refid: card.__refid }));
+  })
+);
+
+userRouter.post(
+  '/cards',
+  wrap(async (req, res) => {
+    const fullUser = await FindUserByUsername(req.session.user!.username);
+    if (!fullUser || !fullUser.cardNumber) return res.redirect('/cards');
+
+    const mainCard = await FindCard(fullUser.cardNumber);
+    if (!mainCard || !mainCard.__refid) return res.redirect('/cards');
+
+    const card = String(req.body.card || '');
+    const normalized = card
+      .toUpperCase()
+      .trim()
+      .replace(/[\s\-]/g, '')
+      .replace(/O/g, '0')
+      .replace(/I/g, '1');
+
+    if (/^[0-9A-F]{16}$/.test(normalized)) {
+      if (!(await FindCard(normalized))) {
+        await CreateCard(normalized, mainCard.__refid, normalized);
+        req.flash('formOk', 'Card added successfully.');
+      } else {
+        req.flash('formWarn', 'Card already exists.');
+      }
+    } else {
+      req.flash('formWarn', 'Invalid card format.');
+    }
+    res.redirect('/cards');
   })
 );
 
@@ -269,5 +368,114 @@ userRouter.post(
     }
     
     res.redirect(`/admin/account/${updateFields.username || targetUser.username}`);
+  })
+);
+
+// Admin: manage profile data + cards for a specific refid
+
+userRouter.get(
+  '/admin/profile/:refid',
+  adminMiddleware,
+  wrap(async (req, res) => {
+    const refid = req.params.refid;
+    const profile = await FindProfile(refid);
+    if (!profile) return res.redirect('/profiles');
+
+    const profileCards = await FindCardsByRefid(refid);
+
+    // Try to find linked account username
+    let accountUsername: string | null = null;
+    if (profileCards && profileCards.length > 0) {
+      for (const c of profileCards) {
+        const u = await FindUserByCardNumber(c.cid);
+        if (u) { accountUsername = u.username; break; }
+      }
+    }
+
+    res.render('admin_profile', data(req, `Admin: ${profile.name}`, 'core', {
+      profile,
+      profileCards: profileCards || [],
+      accountUsername,
+      refid,
+    }));
+  })
+);
+
+userRouter.post(
+  '/admin/profile/:refid',
+  urlencoded({ extended: true }),
+  adminMiddleware,
+  wrap(async (req, res) => {
+    const refid = req.params.refid;
+    const profile = await FindProfile(refid);
+    if (!profile) return res.redirect('/profiles');
+
+    const update: any = {};
+    if (req.body.name) update.name = req.body.name;
+    if (req.body.pin) update.pin = req.body.pin;
+    if (req.body.paseli !== undefined && req.body.paseli !== '') {
+      let paseli = parseInt(String(req.body.paseli), 10);
+      if (!isNaN(paseli)) {
+        paseli = Math.max(0, Math.min(100000, paseli));
+        update.paseli = paseli;
+      }
+    }
+
+    if (Object.keys(update).length > 0) {
+      await UpdateProfile(refid, update);
+      req.flash('formOk', 'Profile updated.');
+    }
+
+    res.redirect(`/admin/profile/${refid}`);
+  })
+);
+
+// Admin: add card to profile
+userRouter.post(
+  '/admin/profile/:refid/card',
+  urlencoded({ extended: true }),
+  adminMiddleware,
+  wrap(async (req, res) => {
+    const refid = req.params.refid;
+    const card = String(req.body.cid || '');
+    const normalized = card
+      .toUpperCase()
+      .trim()
+      .replace(/[\s\-]/g, '')
+      .replace(/O/g, '0')
+      .replace(/I/g, '1');
+
+    if (/^[0-9A-F]{16}$/.test(normalized)) {
+      if (!(await FindCard(normalized))) {
+        await CreateCard(normalized, refid, normalized);
+        req.flash('formOk', 'Card added.');
+      } else {
+        req.flash('formWarn', 'Card already exists.');
+      }
+    } else {
+      req.flash('formWarn', 'Invalid card format (must be 16 hex chars).');
+    }
+    res.redirect(`/admin/profile/${refid}`);
+  })
+);
+
+// Admin: remove card from profile
+userRouter.post(
+  '/admin/profile/:refid/card/delete',
+  urlencoded({ extended: true }),
+  adminMiddleware,
+  wrap(async (req, res) => {
+    const refid = req.params.refid;
+    const cid = String(req.body.cid || '');
+    if (cid) {
+      const profileCards = await FindCardsByRefid(refid);
+      if (profileCards && profileCards.length <= 1) {
+        req.flash('formWarn', 'Cannot delete the only card on this profile.');
+      } else {
+        await DeleteCard(cid);
+        req.flash('formOk', 'Card removed.');
+      }
+    }
+    res.redirect(`/admin/profile/${refid}`);
   })
 );

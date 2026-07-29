@@ -1,0 +1,111 @@
+extends _layout.pug
+
+block content
+  section.section.is-main-section
+    .columns
+      .column.is-8.is-offset-2
+
+        //- Header breadcrumb
+        nav.breadcrumb.mb-4(aria-label="breadcrumbs")
+          ul
+            li: a(href="/profiles") Profiles
+            li: a(href=`/profile/${refid}`) #{profile.name}
+            li.is-active: a(href="#") Admin Edit
+
+        //- Quick links bar
+        .is-flex.is-align-items-center.mb-5(style="gap: 0.75rem; flex-wrap: wrap;")
+          a.button.is-dark(href=`/profile/${refid}`)
+            span.icon.is-small: i.mdi.mdi-arrow-left
+            span View Profile
+          if accountUsername
+            a.button.is-info(href=`/admin/account/${accountUsername}`)
+              span.icon.is-small: i.mdi.mdi-account-cog
+              span Edit Account (#{accountUsername})
+
+        //- Profile data card
+        .card.mb-5
+          header.card-header
+            p.card-header-title
+              span.icon: i.mdi.mdi-account-edit
+              | Profile Data
+          .card-content
+            form(method="post" action=`/admin/profile/${refid}`)
+              .field.is-horizontal
+                .field-label.is-normal
+                  label.label Player Name
+                .field-body
+                  .field
+                    .control.has-icons-left
+                      input.input(type="text" name="name" value=profile.name placeholder="Player name")
+                      span.icon.is-small.is-left: i.mdi.mdi-account
+              .field.is-horizontal
+                .field-label.is-normal
+                  label.label PIN
+                .field-body
+                  .field
+                    .control.has-icons-left
+                      input.input(type="text" name="pin" maxlength="4" placeholder="4-digit PIN (leave blank to keep)")
+                      span.icon.is-small.is-left: i.mdi.mdi-dialpad
+              .field.is-horizontal
+                .field-label.is-normal
+                  label.label PASELI
+                .field-body
+                  .field
+                    .control.has-icons-left
+                      input.input(type="number" name="paseli" min="0" max="100000" placeholder=profile.paseli != null ? profile.paseli : '10000')
+                      span.icon.is-small.is-left: i.mdi.mdi-currency-usd
+              .field.is-grouped.is-grouped-right
+                .control
+                  button.button.is-link(type="submit")
+                    span.icon.is-small: i.mdi.mdi-content-save
+                    span Save Profile
+
+        //- Cards management card
+        .card
+          header.card-header
+            p.card-header-title
+              span.icon: i.mdi.mdi-credit-card-multiple
+              | Cards (#{profileCards.length})
+          .card-content
+            if profileCards && profileCards.length > 0
+              table.table.is-fullwidth.is-striped.is-hoverable.mb-4
+                thead
+                  tr
+                    th Card Number
+                    th Status
+                    th Action
+                tbody
+                  each card, idx in profileCards
+                    tr
+                      td
+                        code(style="font-size: 0.9rem; letter-spacing: 1px;") #{card.cid}
+                        if idx === 0
+                          span.tag.is-success.is-light.ml-2(style="font-size: 0.7rem;") Primary
+                      td
+                        if idx === 0
+                          span.has-text-success Primary card
+                        else
+                          span.has-text-grey Secondary
+                      td
+                        if idx !== 0
+                          form(method="post" action=`/admin/profile/${refid}/card/delete` style="display:inline;")
+                            input(type="hidden" name="cid" value=card.cid)
+                            button.button.is-danger.is-small(type="submit" onclick="return confirm('Remove card ' + this.form.cid.value + '?')")
+                              span.icon.is-small: i.mdi.mdi-delete
+                              span Remove
+                        else
+                          span.has-text-grey.is-size-7 (Cannot remove primary)
+            else
+              .notification.is-dark.is-light No cards associated with this profile.
+
+            hr
+            h6.title.is-6 Add Card
+            form(method="post" action=`/admin/profile/${refid}/card`)
+              .field.has-addons
+                .control.is-expanded
+                  input.input(type="text" name="cid" placeholder="16-character hex card number" maxlength="16" pattern="[0-9A-Fa-f]{16}")
+                .control
+                  button.button.is-success(type="submit")
+                    span.icon.is-small: i.mdi.mdi-plus
+                    span Add Card
+              p.help.has-text-grey 16 hex characters, e.g. A1B2C3D4E5F60000

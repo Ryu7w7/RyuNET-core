@@ -116,10 +116,18 @@ html.has-aside-left.has-aside-mobile-transition.has-navbar-fixed-top.has-aside-e
             
             +li_menu_item("trophy", "Leaderboard", "/leaderboard?game=sdvx")
             
+            li
+              a.has-icon(style="opacity: 0.6; cursor: not-allowed;" title="Coming Soon")
+                span.icon
+                  i.mdi.mdi-account-group
+                span.menu-item-label Team
+                span.tag.is-small.is-warning(style="margin-left:auto; font-weight:bold; border-radius:4px; padding:0 6px;") Pronto
+            
             if admin
               +li_menu_item("database", "Data Management", "/data")
             
             +li_menu_item("account-cog", "Account", "/account")
+            +li_menu_item("credit-card-outline", "Cards", "/cards")
             
             +li_menu_item("gamepad-variant", "Cabinets", "/cabinets")
             
@@ -185,4 +193,8 @@ html.has-aside-left.has-aside-mobile-transition.has-navbar-fixed-top.has-aside-e
           updateOnlineUsers();
           setInterval(updateOnlineUsers, 30000);
         });
+      script.
+        window.jdenticon_config = {
+            backColor: "#222"
+        };
       block scripts

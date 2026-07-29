@@ -75,6 +75,8 @@ function Main() {
   EAMUSE.set('view engine', 'pug');
   EAMUSE.use('*', services(CONFIG.port, external));
   EAMUSE.use('/static', express.static(path.join(ASSETS_PATH, 'static')));
+  const UPLOADS_PATH = path.join((process as any).pkg ? path.dirname(process.argv0) : process.cwd(), 'uploads');
+  EAMUSE.use('/uploads', express.static(UPLOADS_PATH));
   EAMUSE.use(webui);
 
   // ========== LISTEN ============
