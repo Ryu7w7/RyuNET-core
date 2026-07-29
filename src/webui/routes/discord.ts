@@ -168,7 +168,17 @@ discordRouter.get(
       return res.redirect(user.admin ? '/' : '/about');
     } else {
       // Auto-register
-      const desiredUsername = discordUsername;
+      // Sanitize the Discord username to comply with RyuNET username rules:
+      // Only letters, numbers, underscores, hyphens, dots, @. No #, spaces, etc.
+      const sanitized = discordUsername
+        .replace(/[^\w\-.@]/g, '_') // Replace invalid chars with underscore
+        .replace(/^[_\-.@]+/, '')   // Strip leading underscores/symbols
+        .substring(0, 32);          // Enforce max length
+      
+      const desiredUsername = sanitized.length >= 3
+        ? sanitized
+        : `discord_${discordId.substring(0, 10)}`; // Fallback if too short after sanitize
+
       const pass = Math.random().toString(36).slice(-8); // Random password just in case
 
       const account = await CreateUserAccount(
@@ -194,7 +204,7 @@ discordRouter.get(
         cardNumber: '',
         admin: false,
       };
-      Logger.info(`New user registered via Discord: ${desiredUsername}`);
+      Logger.info(`New user registered via Discord: ${desiredUsername} (Discord: ${discordUsername})`);
       return res.redirect('/about');
     }
   })
