@@ -1,4 +1,5 @@
 #!/bin/bash
+cd "$(dirname "$0")/.." || exit
 
 # yao-pkg-fetch fetches Node 22 base binaries from the GitHub release
 # matching the requested target. armv7 prebuilds may be missing for the
