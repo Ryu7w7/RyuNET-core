@@ -1,6 +1,23 @@
 extends _layout.pug
 
 block head
+  -
+    function getRankTier(rank, total) {
+      if (!total || total === 0) return '';
+      const pct = rank / total;
+      if (rank <= 3) return 'rank-top3';
+      if (rank <= 10) return 'rank-top10';
+      if (pct <= 0.05) return 'rank-top5pct';
+      if (pct <= 0.20) return 'rank-top20pct';
+      return '';
+    }
+    
+    let userTierClass = '';
+    if (sdvxRank && sdvxRank.globalRank) {
+      userTierClass = getRankTier(sdvxRank.globalRank, sdvxRank.totalGlobal);
+    } else if (iidxRank && iidxRank.globalRank) {
+      userTierClass = getRankTier(iidxRank.globalRank, iidxRank.totalGlobal);
+    }
   style.
     .profile-header {
       position: relative;
@@ -239,7 +256,7 @@ block content
               span.fi(class="fi-" + countryCode data-tooltip=countryCode.toUpperCase() style="margin-right: 0.5rem; border-radius: 2px; border-bottom: none !important;")
             else
               span(style="margin-right: 0.5rem; font-size: 1.2rem;" data-tooltip="Unknown") 🌎
-            | #{profile.name}
+            span(class=userTierClass) #{profile.name}
             
             if myRefid && myRefid !== profile.__refid
               form(action=`/profile/${profile.__refid}/follow` method="POST" style="display: inline-flex; align-items: center; margin-left: 20px;")
