@@ -21,6 +21,145 @@ import fs from 'fs';
 import { sdvxJacketUrl } from '../../utils/sdvx_jacket_resolver';
 import rateLimit from 'express-rate-limit';
 
+// ---------------------------------------------------------------------------
+// Module-level song DB cache — loaded once, never on each request
+// ---------------------------------------------------------------------------
+let _sdvxSongs: any = null;
+let _sdvxCustomSongs: any = null;
+let _iidxSongs: any = null;
+
+// O(1) lookup maps built once from the song DBs
+let _sdvxSongMap: Map<string, any> = new Map();
+let _sdvxCustomSongMap: Map<string, any> = new Map();
+let _iidxSongMap: Map<string, any> = new Map();
+
+function loadSongDBs(): void {
+  try {
+    if (!_sdvxSongs) {
+      _sdvxSongs = JSON.parse(fs.readFileSync(
+        path.join(PLUGIN_PATH, 'sdvx@asphyxia', 'webui', 'asset', 'json', 'music_db.json'), 'utf8'
+      ));
+      if (_sdvxSongs?.mdb?.music) {
+        for (const s of _sdvxSongs.mdb.music) {
+          _sdvxSongMap.set(String(s.id), s);
+        }
+      }
+    }
+  } catch (e) {}
+  try {
+    if (!_sdvxCustomSongs) {
+      _sdvxCustomSongs = JSON.parse(fs.readFileSync(
+        path.join(PLUGIN_PATH, 'sdvx@asphyxia', 'webui', 'asset', 'json', 'custom_music_db.json'), 'utf8'
+      ));
+      if (_sdvxCustomSongs?.mdb?.music) {
+        for (const s of _sdvxCustomSongs.mdb.music) {
+          _sdvxCustomSongMap.set(String(s.id), s);
+        }
+      }
+    }
+  } catch (e) {}
+  try {
+    if (!_iidxSongs) {
+      _iidxSongs = JSON.parse(fs.readFileSync(
+        path.join(PLUGIN_PATH, 'iidx@asphyxia', 'data', 'music_data.json'), 'utf8'
+      ));
+      for (const [id, val] of Object.entries(_iidxSongs as any)) {
+        _iidxSongMap.set(String(id), val);
+      }
+    }
+  } catch (e) {}
+}
+
+/** Try to load DBs at startup (non-fatal if plugins aren't installed yet). */
+try { loadSongDBs(); } catch (e) {}
+
+/**
+ * Maps the type index to the difficulty key used in music_db.json
+ * type 0=NOV->novice, 1=ADV->advanced, 2=EXH->exhaust, 3=INF slot->infinite, 4=MXM->maximum
+ */
+const SDVX_TYPE_TO_JSON_KEY: Record<number, string> = {
+  0: 'novice',
+  1: 'advanced',
+  2: 'exhaust',
+  3: 'infinite',
+  4: 'maximum',
+};
+
+/** Returns the first non-empty difficulty object from the difficulty array. */
+function getSdvxDiffBlock(mid: number | string): any | null {
+  const midStr = String(mid);
+  const song = _sdvxCustomSongMap.get(midStr) || _sdvxSongMap.get(midStr);
+  if (!song) return null;
+  // difficulty is an array; find first element with actual keys
+  if (Array.isArray(song.difficulty)) {
+    for (const d of song.difficulty) {
+      if (d && typeof d === 'object' && Object.keys(d).length > 0) return d;
+    }
+  } else if (song.difficulty && typeof song.difficulty === 'object') {
+    // Fallback if it's a plain object
+    return song.difficulty;
+  }
+  return null;
+}
+
+/**
+ * Resolve level number for a given mid + type.
+ * Returns a string like "18", "17.5", or null if not found/zero.
+ * The JSON already stores the final value (not x10 like XML).
+ */
+function getSdvxLevel(mid: number | string, type: number | string): string | null {
+  const t = Number(type);
+  const block = getSdvxDiffBlock(mid);
+  if (!block) return null;
+  const key = SDVX_TYPE_TO_JSON_KEY[t];
+  if (!key) return null;
+  const raw = block[key];
+  const num = Number(raw);
+  if (!raw || !Number.isFinite(num) || num <= 0) return null;
+  // Format: no trailing .0 (e.g. 18, 17.5)
+  return Number.isInteger(num) ? String(num) : num.toFixed(1).replace(/\.0$/, '');
+}
+
+/**
+ * Resolve the correct SDVX difficulty name + level for a given mid + type.
+ * Returns strings like "MXM 18", "ADV 11", "GRV 17.5"
+ *  type 0 = NOV, 1 = ADV, 2 = EXH
+ *  type 3 = inf slot — actual name from inf_ver: 1=INF, 2=GRV, 3=HVN, 4=VVD, 5=MXM
+ *  type 4 = MXM (separate slot in newer songs)
+ */
+function getSdvxDiff(mid: number | string, type: number | string): string {
+  const t = Number(type);
+  let name: string;
+  if (t === 0) name = 'NOV';
+  else if (t === 1) name = 'ADV';
+  else if (t === 2) name = 'EXH';
+  else if (t === 4) name = 'MXM';
+  else if (t === 3) {
+    const midStr = String(mid);
+    const song = _sdvxCustomSongMap.get(midStr) || _sdvxSongMap.get(midStr);
+    const infVer = song?.info?.inf_ver ?? null;
+    const INF_NAMES: Record<number, string> = { 1: 'INF', 2: 'GRV', 3: 'HVN', 4: 'VVD', 5: 'MXM' };
+    name = INF_NAMES[Number(infVer)] || 'INF';
+  } else {
+    name = `Diff ${t}`;
+  }
+  const level = getSdvxLevel(mid, type);
+  return level ? `${name} ${level}` : name;
+}
+
+/** O(1) title lookup from cached maps. */
+function getSdvxTitle(mid: number | string): string {
+  const midStr = String(mid);
+  const song = _sdvxCustomSongMap.get(midStr) || _sdvxSongMap.get(midStr);
+  return song?.info?.title_name || `Song ID ${mid}`;
+}
+
+function getIidxTitle(mid: number | string): string {
+  const midStr = String(mid);
+  const song = _iidxSongMap.get(midStr) as any;
+  return song?.title || `Song ID ${mid}`;
+}
+
 const UPLOADS_DIR = path.join((process as any).pkg ? path.dirname(process.argv0) : process.cwd(), 'uploads');
 if (!fs.existsSync(path.join(UPLOADS_DIR, 'avatars'))) {
   fs.mkdirSync(path.join(UPLOADS_DIR, 'avatars'), { recursive: true });
@@ -163,16 +302,8 @@ profileRouter.get(
     let sdvxRank = null;
     let iidxRank = null;
 
-    let sdvxSongs: any = null;
-    let sdvxCustomSongs: any = null;
-    let iidxSongs: any = null;
-    try {
-      if (!sdvxSongs) sdvxSongs = JSON.parse(require('fs').readFileSync(path.join(PLUGIN_PATH, 'sdvx@asphyxia', 'webui', 'asset', 'json', 'music_db.json'), 'utf8'));
-      try {
-        if (!sdvxCustomSongs) sdvxCustomSongs = JSON.parse(require('fs').readFileSync(path.join(PLUGIN_PATH, 'sdvx@asphyxia', 'webui', 'asset', 'json', 'custom_music_db.json'), 'utf8'));
-      } catch (e) {}
-      if (!iidxSongs) iidxSongs = JSON.parse(require('fs').readFileSync(path.join(PLUGIN_PATH, 'iidx@asphyxia', 'data', 'music_data.json'), 'utf8'));
-    } catch(e) {}
+    // Ensure DBs are loaded (no-op if already cached at module level)
+    loadSongDBs();
 
 
     try {
@@ -231,28 +362,15 @@ profileRouter.get(
           const top50 = vfRecords.slice(0, 50);
           sdvxStats.volforce = top50.reduce((acc: number, cur: any) => acc + (cur.volforce || 0), 0);
           
-            const sdvxDiffs = ['NOV', 'ADV', 'EXH', 'MXM/INF/GRV/HVN/VVD'];
-            sdvxStats.topPlays = top50.map((play: any) => {
-              let songTitle = `Song ID ${play.mid}`;
-              if (sdvxSongs?.mdb?.music) {
-                const s = sdvxSongs.mdb.music.find((x: any) => String(x.id) === String(play.mid));
-                if (s?.info?.title_name) songTitle = s.info.title_name;
-              }
-              if (sdvxCustomSongs?.mdb?.music) {
-                const s = sdvxCustomSongs.mdb.music.find((x: any) => String(x.id) === String(play.mid));
-                if (s?.info?.title_name) songTitle = s.info.title_name;
-              }
-              
-              return {
-                title: songTitle,
-                diff: sdvxDiffs[play.type] || `Diff ${play.type}`,
-                score: play.score,
-                clear: play.clear,
-                volforce: Number(play.volforce / 1000).toFixed(3),
-                dateStr: timeAgo(play.updatedAt),
-                jacketUrl: sdvxJacketUrl(play.mid, play.type)
-              };
-            });
+            sdvxStats.topPlays = top50.map((play: any) => ({
+              title: getSdvxTitle(play.mid),
+              diff: getSdvxDiff(play.mid, play.type),
+              score: play.score,
+              clear: play.clear,
+              volforce: Number(play.volforce / 1000).toFixed(3),
+              dateStr: timeAgo(play.updatedAt),
+              jacketUrl: sdvxJacketUrl(play.mid, play.type)
+            }));
             // Trend
             const trendRecsSdvx = [...records].sort((a: any, b: any) => {
                const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
@@ -277,48 +395,45 @@ profileRouter.get(
                return tb - ta;
             }).slice(0, 5);
             
-            sdvxStats.recentPlays = recentRecs.map((play: any) => {
-              let songTitle = `Song ID ${play.mid}`;
-              if (sdvxSongs?.mdb?.music) {
-                const s = sdvxSongs.mdb.music.find((x: any) => String(x.id) === String(play.mid));
-                if (s?.info?.title_name) songTitle = s.info.title_name;
-              }
-              if (sdvxCustomSongs?.mdb?.music) {
-                const s = sdvxCustomSongs.mdb.music.find((x: any) => String(x.id) === String(play.mid));
-                if (s?.info?.title_name) songTitle = s.info.title_name;
-              }
+            // Build a Set of first-place keys for O(1) lookup in recentPlays
+            const { getCachedResult: _getCachedForRecent } = require('./leaderboard');
+            const _cachedFirstsForRecent = (_getCachedForRecent('sdvx_firstPlaces') || []) as any[];
+            const firstPlaceKeys = new Set(
+              _cachedFirstsForRecent
+                .filter((f: any) => String(f.refid) === String(refid))
+                .map((f: any) => f.key)
+            );
 
-              return {
-                title: songTitle,
-                diff: sdvxDiffs[play.type] || `Diff ${play.type}`,
-                score: play.score,
-                clear: play.clear,
-                dateStr: timeAgo(play.updatedAt),
-                jacketUrl: sdvxJacketUrl(play.mid, play.type)
-              };
-            });
+            sdvxStats.recentPlays = recentRecs.map((play: any) => ({
+              title: getSdvxTitle(play.mid),
+              diff: getSdvxDiff(play.mid, play.type),
+              score: play.score,
+              clear: play.clear,
+              dateStr: timeAgo(play.updatedAt),
+              jacketUrl: sdvxJacketUrl(play.mid, play.type),
+              isFirstPlace: firstPlaceKeys.has(`${play.mid}:${play.type}`)
+            }));
             
-            // First Places
+            // First Places — with timestamp from user's own records
             const { getCachedResult } = require('./leaderboard');
             const cachedFirsts = getCachedResult('sdvx_firstPlaces') || [];
-            const userFirsts = cachedFirsts.filter((f: any) => String(f.refid) === String(refid));
+            const userFirsts = (cachedFirsts as any[]).filter((f: any) => String(f.refid) === String(refid));
+
+            // Build a Map from mid:type -> record so we can get updatedAt O(1)
+            const recordsByKey = new Map<string, any>();
+            for (const r of records) {
+              recordsByKey.set(`${r.mid}:${r.type}`, r);
+            }
+
             sdvxStats.firstPlaces = userFirsts.map((f: any) => {
                const [mid, type] = f.key.split(':');
-               let songTitle = `Song ID ${mid}`;
-               if (sdvxSongs?.mdb?.music) {
-                 const s = sdvxSongs.mdb.music.find((x: any) => String(x.id) === String(mid));
-                 if (s?.info?.title_name) songTitle = s.info.title_name;
-               }
-               if (sdvxCustomSongs?.mdb?.music) {
-                 const s = sdvxCustomSongs.mdb.music.find((x: any) => String(x.id) === String(mid));
-                 if (s?.info?.title_name) songTitle = s.info.title_name;
-               }
-
+               const matchedRecord = recordsByKey.get(f.key);
                return {
-                  title: songTitle,
-                  diff: sdvxDiffs[Number(type)] || `Diff ${type}`,
+                  title: getSdvxTitle(mid),
+                  diff: getSdvxDiff(mid, type),
                   score: f.score,
                   clear: f.clear,
+                  dateStr: matchedRecord?.updatedAt ? timeAgo(matchedRecord.updatedAt) : null,
                   jacketUrl: sdvxJacketUrl(mid, type)
                };
             });
@@ -343,33 +458,61 @@ profileRouter.get(
           __refid: refid
         });
         if (scores && scores.length > 0) {
-          iidxStats.totalScores = scores.length;
-          
-          const exScores = scores.filter((r: any) => (r.ex_score || 0) > 0);
-          exScores.sort((a: any, b: any) => (b.ex_score || 0) - (a.ex_score || 0));
-          const top50 = exScores.slice(0, 50);
-          
-            const iidxDiffs = ['SPB', 'SPN', 'SPH', 'SPA', 'SPL', 'DPN', 'DPH', 'DPA', 'DPL'];
-            iidxStats.topPlays = top50.map((play: any) => {
-               const mid = play.id || play.music_id || play.mid;
-               let songTitle = `Song ID ${mid}`;
-               if (iidxSongs && iidxSongs[String(mid)]?.title) {
-                 songTitle = iidxSongs[String(mid)].title;
+          // Flatten IIDX scores (asphyxia uses esArray per clid)
+          const flatScores: any[] = [];
+          for (const s of scores) {
+             const mid = s.id || s.music_id || s.mid;
+             if (!mid) continue;
+             if (s.esArray && s.cArray) {
+               for (let clid = 0; clid < 10; clid++) {
+                 if (s.esArray[clid] > 0) {
+                   flatScores.push({
+                     mid: mid,
+                     clid: clid,
+                     ex_score: s.esArray[clid],
+                     clear_flg: s.cArray[clid],
+                     updatedAt: s.updatedAt
+                   });
+                 }
                }
-               
-               let diffIdx = play.style === 1 ? play.diff + 5 : play.diff;
-               if (play.diff === undefined) diffIdx = -1;
-               
-               return {
-                 title: songTitle,
-                 diff: iidxDiffs[diffIdx] || `Diff ${play.diff}`,
-                 score: play.ex_score,
-                 clear: play.clear_flg !== undefined ? play.clear_flg : play.clear_type,
-                 dateStr: timeAgo(play.updatedAt)
-               };
-            });
+             } else if ((s.ex_score || 0) > 0) {
+               // Fallback for single-score format
+               let clid = s.style === 1 ? s.diff + 5 : s.diff;
+               if (s.cltype !== undefined) clid = s.cltype;
+               if (clid === undefined) clid = -1;
+               flatScores.push({
+                 mid: mid,
+                 clid: clid,
+                 ex_score: s.ex_score,
+                 clear_flg: s.clear_flg !== undefined ? s.clear_flg : s.clear_type,
+                 updatedAt: s.updatedAt
+               });
+             }
+          }
+          iidxStats.totalScores = flatScores.length;
+
+          const exScores = [...flatScores].sort((a: any, b: any) => b.ex_score - a.ex_score);
+          const top50 = exScores.slice(0, 50);
+
+          const getIidxDiffStr = (clid: number) => {
+            if (clid === undefined || clid === -1) return 'Diff undefined';
+            const TYPE_MAP: Record<number, string> = {
+              0: 'BGN', 1: 'NRM', 2: 'HYP', 3: 'ANO', 4: 'LEG',
+              6: 'NRM', 7: 'HYP', 8: 'ANO', 9: 'LEG',
+            };
+            const playType = clid < 5 ? 'SP' : 'DP';
+            return `${playType} ${TYPE_MAP[clid] || 'Unknown'}`;
+          };
+
+          iidxStats.topPlays = top50.map((play: any) => ({
+             title: getIidxTitle(play.mid),
+             diff: getIidxDiffStr(play.clid),
+             score: play.ex_score,
+             clear: play.clear_flg,
+             dateStr: timeAgo(play.updatedAt)
+          }));
             // Trend
-            const trendRecsIidx = [...scores].sort((a: any, b: any) => {
+            const trendRecsIidx = [...flatScores].sort((a: any, b: any) => {
                const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
                const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
                return ta - tb; // Ascending
@@ -386,48 +529,46 @@ profileRouter.get(
             }
 
             // Recent Plays
-            const recentRecs = [...scores].sort((a: any, b: any) => {
+            const recentRecs = [...flatScores].sort((a: any, b: any) => {
                const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
                const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
                return tb - ta;
             }).slice(0, 5);
             
-            iidxStats.recentPlays = recentRecs.map((play: any) => {
-               const mid = play.id || play.music_id || play.mid;
-               let songTitle = `Song ID ${mid}`;
-               if (iidxSongs && iidxSongs[String(mid)]?.title) {
-                 songTitle = iidxSongs[String(mid)].title;
-               }
-               
-               let diffIdx = play.style === 1 ? play.diff + 5 : play.diff;
-               if (play.diff === undefined) diffIdx = -1;
-               return {
-                 title: songTitle,
-                 diff: iidxDiffs[diffIdx] || `Diff ${play.diff}`,
+            iidxStats.recentPlays = recentRecs.map((play: any) => ({
+                 title: getIidxTitle(play.mid),
+                 diff: getIidxDiffStr(play.clid),
                  score: play.ex_score,
-                 clear: play.clear_flg !== undefined ? play.clear_flg : play.clear_type,
+                 clear: play.clear_flg,
                  dateStr: timeAgo(play.updatedAt)
-               };
-            });
+            }));
             
-            // First Places
+            // First Places (iidx) — with timestamp from user scores
             const { getCachedResult } = require('./leaderboard');
             const cachedFirsts = getCachedResult('iidx_firstPlaces') || [];
-            const userFirsts = cachedFirsts.filter((f: any) => String(f.refid) === String(refid));
+            const userFirsts = (cachedFirsts as any[]).filter((f: any) => String(f.refid) === String(refid));
+
+            // Build a Map from score key -> score record for O(1) updatedAt lookup
+            const iidxRecordsByKey = new Map<string, any>();
+            for (const s of flatScores) {
+              const playStyle = s.clid < 5 ? 0 : 1;
+              let diff = s.clid;
+              if (playStyle === 1 && s.clid >= 5) diff = s.clid - 5;
+              const key = `${s.mid}:${playStyle}:${diff}`;
+              iidxRecordsByKey.set(key, s);
+            }
+
             iidxStats.firstPlaces = userFirsts.map((f: any) => {
                const [mid, style, diff] = f.key.split(':');
-               let songTitle = `Song ID ${mid}`;
-               if (iidxSongs && iidxSongs[String(mid)]?.title) {
-                 songTitle = iidxSongs[String(mid)].title;
-               }
-               
-               let diffIdx = Number(style) === 1 ? Number(diff) + 5 : Number(diff);
-               if (diff === undefined) diffIdx = -1;
+               let clid = Number(style) === 1 ? Number(diff) + 5 : Number(diff);
+               if (diff === undefined) clid = -1;
+               const matchedRecord = iidxRecordsByKey.get(f.key);
                return {
-                  title: songTitle,
-                  diff: iidxDiffs[diffIdx] || `Diff ${diff}`,
+                  title: getIidxTitle(mid),
+                  diff: getIidxDiffStr(clid),
                   score: f.score,
-                  clear: f.clear !== undefined ? f.clear : (f.clear_flg !== undefined ? f.clear_flg : f.clear_type)
+                  clear: f.clear !== undefined ? f.clear : (f.clear_flg !== undefined ? f.clear_flg : f.clear_type),
+                  dateStr: matchedRecord?.updatedAt ? timeAgo(matchedRecord.updatedAt) : null
                };
             });
           }
@@ -501,6 +642,24 @@ profileRouter.post(
     if (typeof req.body.bio === 'string') {
       update.bio = req.body.bio.substring(0, 500);
     }
+    // New profile detail fields
+    const simpleStr = (val: any, max = 100) =>
+      typeof val === 'string' ? val.trim().substring(0, max) : undefined;
+    const socialHandle = (val: any) => {
+      if (typeof val !== 'string') return undefined;
+      return val.trim().replace(/^@+/, '').substring(0, 50);
+    };
+    const webUrl = (val: any) => {
+      if (typeof val !== 'string') return undefined;
+      const v = val.trim().substring(0, 200);
+      try { new URL(v.startsWith('http') ? v : 'https://' + v); return v; } catch { return undefined; }
+    };
+    if (req.body.location !== undefined)   update.location   = simpleStr(req.body.location)   ?? '';
+    if (req.body.interests !== undefined)  update.interests  = simpleStr(req.body.interests)   ?? '';
+    if (req.body.occupation !== undefined) update.occupation = simpleStr(req.body.occupation)  ?? '';
+    if (req.body.twitter !== undefined)    update.twitter    = socialHandle(req.body.twitter)   ?? '';
+    if (req.body.discord !== undefined)    update.discord    = socialHandle(req.body.discord)   ?? '';
+    if (req.body.website !== undefined)    update.website    = webUrl(req.body.website)         ?? '';
 
     await UpdateProfile(refid, update);
     req.flash('formOk', 'Updated');

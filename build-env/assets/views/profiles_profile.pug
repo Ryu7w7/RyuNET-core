@@ -11,7 +11,7 @@ block head
       background-color: #2a2a2a;
     }
     .profile-banner {
-      height: 250px;
+      height: 280px;
       background-image: url('#{profile.bannerUrl ? "/uploads/" + profile.bannerUrl : "/static/img/default-banner.png"}');
       background-size: cover;
       background-position: center;
@@ -98,8 +98,8 @@ block head
     .profile-bio-section {
       background: rgba(0,0,0,0.25);
       border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 8px;
-      padding: 1rem 1.25rem;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
       margin-bottom: 1.5rem;
     }
     .profile-bio-label {
@@ -111,12 +111,35 @@ block head
     }
     .profile-bio-text {
       color: #ddd;
-      font-size: 0.95rem;
-      white-space: pre-wrap;
-      max-height: 8em;
+      font-size: 1rem;
+      line-height: 1.75;
+      /* Auto-expand: no fixed height, grows with content up to max */
+      min-height: 3em;
+      max-height: 22em;
       overflow-y: auto;
-      line-height: 1.6;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.15) transparent;
     }
+    .profile-bio-text p { margin-bottom: 0.6em; }
+    .profile-bio-text p:last-child { margin-bottom: 0; }
+    .profile-bio-text h1, .profile-bio-text h2, .profile-bio-text h3 { color: #fff; font-weight: 700; margin: 0.8em 0 0.4em; }
+    .profile-bio-text h1 { font-size: 1.4rem; }
+    .profile-bio-text h2 { font-size: 1.2rem; }
+    .profile-bio-text h3 { font-size: 1.05rem; }
+    .profile-bio-text strong { color: #fff; }
+    .profile-bio-text em { color: #ccc; }
+    .profile-bio-text a { color: #66c2ff; text-decoration: underline; }
+    .profile-bio-text ul, .profile-bio-text ol { padding-left: 1.5em; margin-bottom: 0.5em; }
+    .profile-bio-text li { margin-bottom: 0.2em; }
+    .profile-bio-text code { background: rgba(255,255,255,0.08); border-radius: 4px; padding: 1px 5px; font-family: monospace; font-size: 0.9em; }
+    .profile-bio-text blockquote { border-left: 3px solid rgba(255,255,255,0.2); padding-left: 1em; color: #aaa; margin: 0.5em 0; }
+    /* Markdown toolbar */
+    .bio-toolbar { display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 8px; background: #1a1a1a; border: 1px solid rgba(255,255,255,0.1); border-bottom: none; border-radius: 8px 8px 0 0; }
+    .bio-toolbar-btn { background: none; border: 1px solid transparent; color: #aaa; border-radius: 5px; width: 30px; height: 28px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; cursor: pointer; transition: all 0.15s; font-family: serif; font-weight: bold; }
+    .bio-toolbar-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff; }
+    .bio-toolbar-sep { width: 1px; background: rgba(255,255,255,0.1); margin: 3px 2px; }
+    .bio-textarea-wrap textarea { border-radius: 0 0 8px 8px !important; border-top: none !important; resize: none; min-height: 120px; max-height: 400px; overflow-y: auto; }
     .stats-horizontal { display: flex; justify-content: space-around; background: #222; border-radius: 12px; padding: 20px 10px; margin-bottom: 2rem; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
     .stat-item { display: flex; flex-direction: column; align-items: center; }
     .stat-label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
@@ -181,6 +204,31 @@ block head
     .stat-val.gold { color: #ffd700; }
     .pane-container { max-width: 900px; margin: 0 auto; }
 
+    .profile-details-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin-top: 0.5rem; font-size: 0.82rem; color: #aaa; }
+    .profile-detail-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .profile-detail-item a { color: #aaa; text-decoration: none; transition: color 0.2s; }
+    .profile-detail-item a:hover { color: #fff; }
+    .profile-detail-item .mdi { font-size: 1rem; }
+    .edit-profile-btn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #ccc; border-radius: 20px; padding: 4px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px; display: inline-flex; align-items: center; gap: 6px; }
+    .edit-profile-btn:hover { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.3); color: #fff; }
+    .ep-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; align-items: center; justify-content: center; }
+    .ep-modal-backdrop.is-open { display: flex; }
+    .ep-modal { background: #1e1e1e; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 2rem; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.6); animation: ep-in 0.2s ease; }
+    @keyframes ep-in { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
+    .ep-modal h2 { font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px; }
+    .ep-field { margin-bottom: 1rem; }
+    .ep-label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 5px; font-weight: 600; }
+    .ep-input { width: 100%; background: #2a2a2a; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; padding: 8px 12px; font-size: 0.9rem; transition: border-color 0.2s; outline: none; }
+    .ep-input:focus { border-color: rgba(255,255,255,0.35); }
+    .ep-prefix { display: flex; align-items: center; background: #2a2a2a; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; }
+    .ep-prefix-label { padding: 8px 10px; color: #666; font-size: 0.85rem; white-space: nowrap; border-right: 1px solid rgba(255,255,255,0.08); }
+    .ep-prefix .ep-input { border: none; border-radius: 0; background: transparent; }
+    .ep-divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 1.2rem 0; }
+    .ep-section-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px; color: #666; margin-bottom: 0.75rem; font-weight: 700; }
+    .ep-close { position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: #888; font-size: 1.4rem; cursor: pointer; line-height: 1; padding: 4px; border-radius: 50%; transition: color 0.2s; }
+    .ep-close:hover { color: #fff; }
+    .ep-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 1.5rem; }
+
 block content
   - const getRankTier = (rank, total) => {
   -   if (!rank || !total) return '';
@@ -229,6 +277,7 @@ block content
               input.hidden-file-input(type="file" name="banner" accept="image/*" onchange="this.form.submit()")
               span.icon.is-medium: i.mdi.mdi-camera
               span &nbsp; Change Banner
+              span(style="font-size: 0.7rem; opacity: 0.7; margin-left: 6px;") (2000×500)
       .profile-avatar
         if profile.avatarUrl
           img(src=`/uploads/${profile.avatarUrl}`)
@@ -277,15 +326,95 @@ block content
                 .is-flex.is-align-items-center
                   span.icon.is-small(style="margin-right: 0.2rem;") #[i.mdi.mdi-clock-outline]
                   span #{lastSeenStr}
+          
+          //- Social / detail bar (osu!-style)
+          - const hasDetails = profile.location || profile.interests || profile.occupation || profile.twitter || profile.discord || profile.website
+          if hasDetails
+            .profile-details-bar
+              if profile.location
+                span.profile-detail-item
+                  i.mdi.mdi-map-marker-outline
+                  span #{profile.location}
+              if profile.interests
+                span.profile-detail-item
+                  i.mdi.mdi-heart-outline
+                  span #{profile.interests}
+              if profile.occupation
+                span.profile-detail-item
+                  i.mdi.mdi-briefcase-outline
+                  span #{profile.occupation}
+              if profile.twitter
+                span.profile-detail-item
+                  i.mdi.mdi-twitter
+                  a(href=`https://twitter.com/${profile.twitter}` target="_blank" rel="noopener") @#{profile.twitter}
+              if profile.discord
+                span.profile-detail-item
+                  i.mdi.mdi-discord
+                  span #{profile.discord}
+              if profile.website
+                span.profile-detail-item
+                  i.mdi.mdi-link-variant
+                  a(href=(profile.website.startsWith('http') ? profile.website : 'https://' + profile.website) target="_blank" rel="noopener") #{profile.website}
+
+          //- Edit Profile button for owner/admin
+          if isAdmin || isOwner
+            .mt-2
+              button.edit-profile-btn(onclick="openEditProfile()")
+                i.mdi.mdi-pencil-outline
+                | Edit Profile
+
         if isAdmin
-          .is-flex.is-align-items-center(style="gap: 0.5rem; margin-left: auto; flex-shrink: 0;")
+          .is-flex.is-align-items-center(style="gap: 0.5rem; margin-left: auto; flex-shrink: 0; align-self: flex-start; padding-top: 4px;")
             a.button.is-small.is-warning(href=`/admin/profile/${profile.__refid}` title="Edit profile data & cards")
               span.icon.is-small: i.mdi.mdi-account-edit
-              span Edit Profile
+              span Admin Edit
             if accountUsername
               a.button.is-small.is-info(href=`/admin/account/${accountUsername}` title="Edit account credentials")
                 span.icon.is-small: i.mdi.mdi-account-cog
                 span Edit Account
+
+
+    //- Edit Profile Modal
+    if isAdmin || isOwner
+      .ep-modal-backdrop#ep-modal-backdrop(onclick="closeEditProfileBackdrop(event)")
+        .ep-modal
+          button.ep-close(onclick="closeEditProfile()" type="button") &times;
+          h2
+            i.mdi.mdi-account-edit-outline
+            | Edit Profile
+          form(action=`/profile/${profile.__refid}` method="post")
+            
+
+            p.ep-section-label Personal
+            .ep-field
+              label.ep-label(for="ep-location") Current location
+              input#ep-location.ep-input(type="text" name="location" maxlength="100" placeholder="e.g. My Home" value=(profile.location || ''))
+            .ep-field
+              label.ep-label(for="ep-interests") Interests
+              input#ep-interests.ep-input(type="text" name="interests" maxlength="100" placeholder="e.g. Sleep" value=(profile.interests || ''))
+            .ep-field
+              label.ep-label(for="ep-occupation") Occupation
+              input#ep-occupation.ep-input(type="text" name="occupation" maxlength="100" placeholder="e.g. Student & working" value=(profile.occupation || ''))
+            
+            hr.ep-divider
+            p.ep-section-label Socials
+            .ep-field
+              label.ep-label(for="ep-twitter") Twitter / X
+              .ep-prefix
+                span.ep-prefix-label @
+                input#ep-twitter.ep-input(type="text" name="twitter" maxlength="50" placeholder="handle" value=(profile.twitter || ''))
+            .ep-field
+              label.ep-label(for="ep-discord") Discord
+              input#ep-discord.ep-input(type="text" name="discord" maxlength="50" placeholder="username" value=(profile.discord || ''))
+            .ep-field
+              label.ep-label(for="ep-website") Website
+              input#ep-website.ep-input(type="url" name="website" maxlength="200" placeholder="https://..." value=(profile.website || ''))
+            
+            .ep-actions
+              button.button.is-dark.is-small(type="button" onclick="closeEditProfile()") Cancel
+              button.button.is-primary.is-small(type="submit")
+                span.icon.is-small: i.mdi.mdi-content-save-outline
+                span Save changes
 
                 
     .profile-bio-section
@@ -294,22 +423,42 @@ block content
           span.icon.is-small.mr-2: i.mdi.mdi-text-account
           span(style="font-weight: 600; letter-spacing: 1px; text-transform: uppercase; font-size: 0.9rem; color: #bbb;") About
         if isAdmin || isOwner
-          button.button.is-small.bio-edit-btn(onclick="toggleBioEdit()")
+          button.button.is-small.bio-edit-btn(onclick="toggleBioEdit()" id="bio-edit-toggle-btn")
             span.icon.is-small: i.mdi.mdi-pencil
             span Edit
       
-      .profile-bio-text.content#bio-display !{bioHtml || '<em>No bio provided.</em>'}
+      .profile-bio-text.content#bio-display !{bioHtml || '<em style="color:#666;">No bio provided yet.</em>'}
       
       if isAdmin || isOwner
         form#bio-edit-form(action=`/profile/${profile.__refid}` method="post" style="display: none;")
-          .field
+          //- Markdown toolbar
+          .bio-toolbar#bio-toolbar
+            button.bio-toolbar-btn(type="button" title="Bold" onclick="bioInsert('**','**')")
+              b B
+            button.bio-toolbar-btn(type="button" title="Italic" onclick="bioInsert('*','*')")
+              i I
+            button.bio-toolbar-btn(type="button" title="Strikethrough" onclick="bioInsert('~~','~~')" style="font-size:0.8rem; text-decoration: line-through;") S
+            .bio-toolbar-sep
+            button.bio-toolbar-btn(type="button" title="Heading" onclick="bioInsertLine('## ')" style="font-size:0.8rem; font-family: sans-serif; font-weight:700;") H
+            button.bio-toolbar-btn(type="button" title="Quote" onclick="bioInsertLine('> ')" style="font-family: sans-serif;") "
+            .bio-toolbar-sep
+            button.bio-toolbar-btn(type="button" title="Ordered list" onclick="bioInsertLine('1. ')" style="font-family: sans-serif; font-size: 0.75rem;")
+              i.mdi.mdi-format-list-numbered
+            button.bio-toolbar-btn(type="button" title="Unordered list" onclick="bioInsertLine('- ')" style="font-family: sans-serif; font-size: 0.75rem;")
+              i.mdi.mdi-format-list-bulleted
+            .bio-toolbar-sep
+            button.bio-toolbar-btn(type="button" title="Link" onclick="bioInsertLink()" style="font-family: sans-serif; font-size: 0.75rem;")
+              i.mdi.mdi-link-variant
+            button.bio-toolbar-btn(type="button" title="Inline code" onclick="bioInsert('\`','\`')" style="font-family: monospace; font-size: 0.8rem;") &lt;/&gt;
+          .bio-textarea-wrap
+            textarea.textarea#bio-textarea(name="bio" maxlength="500" placeholder="Write something about yourself... (Markdown supported)") #{profile.bio || ''}
+          .field.is-grouped.mt-2
             .control
-              textarea.textarea.is-small(name="bio" rows="3" maxlength="500") #{profile.bio || ''}
-          .field.is-grouped
+              button.button.is-primary.is-small(type="submit")
+                span.icon.is-small: i.mdi.mdi-content-save-outline
+                span Save
             .control
-              button.button.is-primary.is-small(type="submit") Save
-            .control
-              a.button.is-light.is-small(onclick="toggleBioEdit()") Cancel
+              a.button.is-dark.is-small(onclick="toggleBioEdit()") Cancel
 
     .tabs.is-centered.is-boxed
       ul
@@ -366,7 +515,8 @@ block content
                        img(src=play.jacketUrl onerror="jacketFallback(this)" style="width: 40px; height: 40px; border-radius: 4px; margin-right: 12px; object-fit: cover;")
                        div(style="flex: 1;")
                          div
-                           span.icon.is-small(style="color: #00d1b2;"): i.mdi.mdi-history
+                           span.icon.is-small(style=`color: ${play.isFirstPlace ? '#ffd700' : '#00d1b2'};`)
+                             i.mdi(class=play.isFirstPlace ? 'mdi-crown' : 'mdi-history')
                            span.has-text-weight-bold  #{profile.name}
                            |  played 
                            span.has-text-weight-bold(style="color: #66c2ff;") #{play.title} [#{play.diff}] 
@@ -388,7 +538,11 @@ block content
                     .stat-col
                       .score-main-stat #{play.score}
                       .score-sub-stat Score
-                    .score-date 👑 Rank #1
+                    .score-date
+                      if play.dateStr
+                        | #{play.dateStr}
+                      else
+                        | —
             if sdvxStats.firstPlaces.length > 5
               .show-more-container
                 button.show-more-btn(onclick="loadMoreScores('sdvx-first-places', this)") SHOW MORE ⏷
@@ -483,7 +637,11 @@ block content
                     .stat-col
                       .score-main-stat #{play.score}
                       .score-sub-stat EX Score
-                    .score-date 👑 Rank #1
+                    .score-date
+                      if play.dateStr
+                        | #{play.dateStr}
+                      else
+                        | —
             if iidxStats.firstPlaces.length > 5
               .show-more-container
                 button.show-more-btn(onclick="loadMoreScores('iidx-first-places', this)") SHOW MORE ⏷
@@ -516,9 +674,9 @@ block content
 
 
 block scripts
-  script(type="text/javascript" src="/static/js/profile.js")
   script.
     const JACKET_DUMMY = 'https://jackets.ryu7w7.xyz/sdvx/jk_dummy.png';
+    // jacketFallback MUST be defined before any <img> onerror fires.
     function jacketFallback(img) {
       // Try falling back: _4 -> _3 -> _2 -> _1 -> dummy
       // URL pattern: .../folderName/jk_XXXX_N.png
@@ -536,7 +694,20 @@ block scripts
       img.onerror = null;
       img.src = JACKET_DUMMY;
     }
+  script(type="text/javascript" src="/static/js/profile.js")
   script.
+    function openEditProfile() {
+      document.getElementById('ep-modal-backdrop').classList.add('is-open');
+      document.documentElement.classList.add('is-clipped');
+    }
+    function closeEditProfile() {
+      document.getElementById('ep-modal-backdrop').classList.remove('is-open');
+      document.documentElement.classList.remove('is-clipped');
+    }
+    function closeEditProfileBackdrop(e) {
+      if (e.target === document.getElementById('ep-modal-backdrop')) closeEditProfile();
+    }
+
     function loadMoreScores(containerId, btnElement) {
       const container = document.getElementById(containerId);
       if (!container) return;
@@ -592,6 +763,57 @@ block scripts
         e.currentTarget.closest('.modal').classList.remove('is-active');
         document.documentElement.classList.remove('is-clipped');
       });
+    });
+    // ---- Markdown toolbar helpers ----
+    function getBioTA() { return document.getElementById('bio-textarea'); }
+
+    function bioInsert(before, after) {
+      var ta = getBioTA(); if (!ta) return;
+      var start = ta.selectionStart, end = ta.selectionEnd;
+      var sel = ta.value.slice(start, end);
+      var replacement = before + (sel || 'text') + after;
+      ta.setRangeText(replacement, start, end, 'select');
+      // Reposition cursor inside the wrapper
+      ta.selectionStart = start + before.length;
+      ta.selectionEnd = start + before.length + (sel || 'text').length;
+      ta.focus();
+      bioAutoResize(ta);
+    }
+
+    function bioInsertLine(prefix) {
+      var ta = getBioTA(); if (!ta) return;
+      var start = ta.selectionStart;
+      // Find start of current line
+      var lineStart = ta.value.lastIndexOf('\n', start - 1) + 1;
+      ta.setRangeText(prefix, lineStart, lineStart, 'end');
+      ta.focus();
+      bioAutoResize(ta);
+    }
+
+    function bioInsertLink() {
+      var ta = getBioTA(); if (!ta) return;
+      var start = ta.selectionStart, end = ta.selectionEnd;
+      var sel = ta.value.slice(start, end) || 'link text';
+      var url = prompt('Enter URL:', 'https://');
+      if (!url) return;
+      var md = '[' + sel + '](' + url + ')';
+      ta.setRangeText(md, start, end, 'end');
+      ta.focus();
+      bioAutoResize(ta);
+    }
+
+    function bioAutoResize(ta) {
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 400) + 'px';
+    }
+
+    // Auto-resize on load and input
+    document.addEventListener('DOMContentLoaded', function() {
+      var ta = getBioTA();
+      if (ta) {
+        ta.addEventListener('input', function() { bioAutoResize(ta); });
+        bioAutoResize(ta);
+      }
     });
 
 
