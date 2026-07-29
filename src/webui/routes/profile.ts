@@ -593,9 +593,9 @@ profileRouter.get(
 
     const fullHost = req.protocol + '://' + req.get('host');
     let ogDescription = "No data available yet.";
-    if (sdvxRank && (sdvxRank.globalRank || sdvxRank.countryRank)) {
+    if (sdvxRank && (sdvxRank.globalRank || sdvxRank.nationalRank)) {
       const gRank = sdvxRank.globalRank ? `#${sdvxRank.globalRank.toLocaleString()}` : "N/A";
-      const cRank = sdvxRank.countryRank ? `#${sdvxRank.countryRank.toLocaleString()}` : "N/A";
+      const cRank = sdvxRank.nationalRank ? `#${sdvxRank.nationalRank.toLocaleString()}` : "N/A";
       ogDescription = `SDVX - Rank Global: ${gRank} | Country ${cRank}`;
     }
     const ogImage = profile.avatarUrl ? `${fullHost}/uploads/${profile.avatarUrl}` : `${fullHost}/static/img/avatar.jpg`;
