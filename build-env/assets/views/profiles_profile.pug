@@ -1,23 +1,7 @@
 extends _layout.pug
 
 block head
-  -
-    function getRankTier(rank, total) {
-      if (!total || total === 0) return '';
-      const pct = rank / total;
-      if (rank <= 3) return 'rank-top3';
-      if (rank <= 10) return 'rank-top10';
-      if (pct <= 0.05) return 'rank-top5pct';
-      if (pct <= 0.20) return 'rank-top20pct';
-      return '';
-    }
-    
-    let userTierClass = '';
-    if (sdvxRank && sdvxRank.globalRank) {
-      userTierClass = getRankTier(sdvxRank.globalRank, sdvxRank.totalGlobal);
-    } else if (iidxRank && iidxRank.globalRank) {
-      userTierClass = getRankTier(iidxRank.globalRank, iidxRank.totalGlobal);
-    }
+
   style.
     .profile-header {
       position: relative;
@@ -209,6 +193,12 @@ block content
   -   if (pct <= 0.40) return 'tier-silver';
   -   if (pct <= 0.70) return 'tier-bronze';
   -   return 'tier-iron';
+  - }
+  - let userTierClass = '';
+  - if (sdvxRank && sdvxRank.globalRank) {
+  -   userTierClass = getRankTier(sdvxRank.globalRank, sdvxRank.totalGlobal);
+  - } else if (iidxRank && iidxRank.globalRank) {
+  -   userTierClass = getRankTier(iidxRank.globalRank, iidxRank.totalGlobal);
   - }
   - const getSdvxClearClass = (clearVal) => {
   -   const c = Number(clearVal);
