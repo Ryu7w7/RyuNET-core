@@ -1,0 +1,14 @@
+extends _layout.pug
+
+block content
+  section.section.is-main-section
+    section.hero.is-dark(geopattern)
+      .hero-body
+        .columns
+          .column.is-narrow
+            .image.is-128x128.has-text-centered.is-flex.is-align-items-center.is-justify-content-center
+              i.mdi.mdi-lock(style="font-size: 72px; color: #fff;")
+          .column
+            h1.title Access Denied
+            p.subtitle This profile is private.
+            p.has-text-right.is-size-7 Only the owner and administrators can view this page.

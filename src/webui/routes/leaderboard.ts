@@ -30,6 +30,10 @@ export function setCachedResult(key: string, value: any) {
   leaderboardCache.set(key, { data: value, timestamp: Date.now() });
 }
 
+export function invalidateLeaderboardCache() {
+  leaderboardCache.clear();
+}
+
 // --- Helpers ---
 function sanitizeNickname(name: string) {
   const banned = ['nigger', 'nigga', 'faggot', 'kike', 'spic', 'chink', 'retard'];
@@ -82,6 +86,9 @@ export async function getOrBuildLeaderboardCache(game: string, style: string) {
   let rows = getCachedResult(cacheKey);
   if (rows) return rows;
 
+  const allProfiles = (await GetProfiles()) || [];
+  const profileMap = new Map(allProfiles.map((p: any) => [String(p.__refid), p]));
+
   if (game === 'sdvx') {
     const plugin = ROOT_CONTAINER.getPluginByID('sdvx@asphyxia');
     if (!plugin) return null;
@@ -92,6 +99,9 @@ export async function getOrBuildLeaderboardCache(game: string, style: string) {
     const globalFirstPlaces = new Map<string, { score: number, refid: string }>();
     
     for (const refid in byRef) {
+      const coreProfile: any = profileMap.get(refid);
+      if (coreProfile?.isPrivate) continue;
+
       const bestByChart = new Map<string, number>();
       for (const d of byRef[refid]) {
         if (d.collection === 'music' && d.mid != null && d.type != null) {
@@ -112,7 +122,6 @@ export async function getOrBuildLeaderboardCache(game: string, style: string) {
       
       const sumTop50 = Array.from(bestByChart.values()).sort((a, b) => b - a).slice(0, 50).reduce((a, b) => a + b, 0);
       const vfTotal = sumTop50 / 1000;
-      const coreProfile: any = await FindProfile(refid);
       const nickname = getGameNickname(byRef[refid]);
       const name = nickname ? sanitizeNickname(nickname) : (coreProfile?.name || '(no name)');
       const classNum = vfToClassNum(vfTotal);
@@ -155,6 +164,9 @@ export async function getOrBuildLeaderboardCache(game: string, style: string) {
     const globalFirstPlaces = new Map<string, { score: number, refid: string }>();
     
     for (const refid in byRef) {
+      const coreProfile: any = profileMap.get(refid);
+      if (coreProfile?.isPrivate) continue;
+
       let totalEX = 0, entries = 0;
       for (const d of byRef[refid]) {
         if (d.collection !== 'score') continue;
@@ -179,7 +191,6 @@ export async function getOrBuildLeaderboardCache(game: string, style: string) {
       }
       if (totalEX <= 0) continue;
       
-      const coreProfile: any = await FindProfile(refid);
       const nickname = getGameNickname(byRef[refid]);
       const name = nickname ? sanitizeNickname(nickname) : (coreProfile?.name || '(no name)');
       

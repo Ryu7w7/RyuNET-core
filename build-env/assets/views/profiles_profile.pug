@@ -392,6 +392,13 @@ block content
           form(action=`/profile/${profile.__refid}` method="post")
             
 
+            p.ep-section-label Privacy
+            .ep-field
+              label.checkbox(style="color: #ccc;")
+                input(type="checkbox" name="isPrivate" checked=profile.isPrivate style="margin-right: 8px;")
+                | Make my profile private (Hide from leaderboards & guests)
+
+            hr.ep-divider
             p.ep-section-label Personal
             .ep-field
               label.ep-label(for="ep-location") Current location

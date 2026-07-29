@@ -107,15 +107,17 @@ webui.use(richPresenceRouter); // SDVX Rich Presence name lookup (public, read-o
 // Launcher API
 webui.use(launcherRouter);
 
+// Public/Guest allowed Routes
+webui.use(profileRouter);
+webui.use(leaderboardRouter);
+
 // Protected Routes
 webui.use(bearerTokenMiddleware);
 webui.use(authMiddleware);
 
 webui.use(userRouter);
-webui.use(profileRouter);
 webui.use('/api/nabla', nablaRouter);
 webui.use(migrationRouter);
-webui.use(leaderboardRouter);
 webui.use(pluginRouter);
 webui.use(cabinetsRouter);
 

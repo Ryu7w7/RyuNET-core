@@ -84,19 +84,28 @@ html.has-aside-left.has-aside-mobile-transition.has-navbar-fixed-top.has-aside-e
                 span.tag.is-success.is-light#online-users-badge(style="margin-right: 10px; display: none;") Online: ?
                 span.icon
                   i.mdi.mdi-account-circle
-                span #{user}
+                if user
+                  span #{user}
+                else
+                  span Guest
                 span.icon
                   i.mdi.mdi-chevron-down
               .navbar-dropdown.is-right
-                a.navbar-item(href="/account")
-                  span.icon
-                    i.mdi.mdi-account-cog
-                  span Account Settings
-                hr.navbar-divider
-                a.navbar-item(href="/logout")
-                  span.icon
-                    i.mdi.mdi-logout
-                  span Logout
+                if user
+                  a.navbar-item(href="/account")
+                    span.icon
+                      i.mdi.mdi-account-cog
+                    span Account Settings
+                  hr.navbar-divider
+                  a.navbar-item(href="/logout")
+                    span.icon
+                      i.mdi.mdi-logout
+                    span Logout
+                else
+                  a.navbar-item(href="/")
+                    span.icon
+                      i.mdi.mdi-login
+                    span Login
       aside.aside.is-placed-left.is-expanded(data-simplebar)
         .aside-tools
           .aside-tools-label
@@ -111,7 +120,7 @@ html.has-aside-left.has-aside-mobile-transition.has-navbar-fixed-top.has-aside-e
             
             if admin
               +li_menu_item("account-circle", "Profiles", "/profiles")
-            else
+            else if user
               +li_menu_item("account-circle", "Profile", "/my-profile")
             
             +li_menu_item("trophy", "Leaderboard", "/leaderboard?game=sdvx")
@@ -126,24 +135,25 @@ html.has-aside-left.has-aside-mobile-transition.has-navbar-fixed-top.has-aside-e
             if admin
               +li_menu_item("database", "Data Management", "/data")
             
-            +li_menu_item("account-cog", "Account", "/account")
-            +li_menu_item("credit-card-outline", "Cards", "/cards")
-            
-            +li_menu_item("gamepad-variant", "Cabinets", "/cabinets")
+            if user
+              +li_menu_item("account-cog", "Account", "/account")
+              +li_menu_item("credit-card-outline", "Cards", "/cards")
+              +li_menu_item("gamepad-variant", "Cabinets", "/cabinets")
             
             if admin
               +li_menu_item("account-group", "Users", "/users")
-          p.menu-label Games
-          ul.menu-list
-            each plugin in plugins
-              -
-                var link = plugin.id;
-                var label = plugin.name.toUpperCase();
-                var char = link[0].toLowerCase();
-                var isAlpha = /[a-zA-Z]/.test(char);
-                var isNumeric = /[0-9]/.test(char);
-                var icon = isAlpha ? `alpha-${char}-circle` : (isNumeric ? `numeric-${char}-circle` : 'record-circle');
-              +li_plugin(icon, label, link, plugin.pages)
+          if user
+            p.menu-label Games
+            ul.menu-list
+              each plugin in plugins
+                -
+                  var link = plugin.id;
+                  var label = plugin.name.toUpperCase();
+                  var char = link[0].toLowerCase();
+                  var isAlpha = /[a-zA-Z]/.test(char);
+                  var isNumeric = /[0-9]/.test(char);
+                  var icon = isAlpha ? `alpha-${char}-circle` : (isNumeric ? `numeric-${char}-circle` : 'record-circle');
+                +li_plugin(icon, label, link, plugin.pages)
       .content#main-content(data-simplebar)
         section.hero.is-hero-bar
           .hero-body

@@ -10,10 +10,11 @@ import {
   DeleteCard,
   CreateCard,
   UpdateProfile,
+  FindUserByUsername,
   GET_DB,
   PLUGIN_PATH,
 } from '../../utils/EamuseIO';
-import { wrap, adminMiddleware } from '../shared/middleware';
+import { wrap, adminMiddleware, authMiddleware } from '../shared/middleware';
 import { data, userOwnsProfile } from '../shared/helpers';
 import multer from 'multer';
 import path from 'path';
@@ -228,8 +229,41 @@ const editRateLimit = rateLimit({
 
 export const profileRouter = Router();
 
+// Alias Resolver: Allows using a username instead of a 16-hex refid in the URL
+profileRouter.param('refid', async (req: any, res: any, next: any, id: string) => {
+  try {
+    // If it's a 16 hex character string, treat it as a refid — no lookup needed
+    if (/^[0-9A-F]{16}$/i.test(id)) {
+      return next();
+    }
+
+    // Sanitize: reject anything that's not a plausible username (length, allowed chars)
+    // Usernames should only have alphanumeric, underscore, hyphen (same as redirect check)
+    if (!id || id.length > 64 || !/^[\w\-]+$/.test(id)) {
+      return next(); // Will 404 naturally if profile not found
+    }
+
+    // Treat as a username alias
+    const user = await FindUserByUsername(id);
+    if (user && user.cardNumber) {
+      const card = await FindCard(user.cardNumber);
+      if (card && card.__refid) {
+        // Overwrite the param with the real refid so all downstream routes work normally
+        req.params['refid'] = card.__refid;
+        return next();
+      }
+    }
+
+    // Alias not found — proceed (will 404 naturally)
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+});
+
 profileRouter.get(
   '/my-profile',
+  authMiddleware,
   wrap(async (req, res) => {
     const cardNumber = req.session.user!.cardNumber;
     if (cardNumber) {
@@ -275,9 +309,14 @@ profileRouter.get(
     const profile = await FindProfile(refid);
     if (!profile) return next();
 
-    const isAdmin = req.session.user!.admin;
-    const isOwner = await userOwnsProfile(req, refid);
-    // Any logged-in user can VIEW the profile. Only admin/owner see the edit modal.
+    const isAdmin = req.session?.user?.admin || false;
+    const isOwner = req.session?.user ? await userOwnsProfile(req, refid) : false;
+    // Any user can VIEW the profile. Only admin/owner see the edit modal.
+
+    // Privacy Logic
+    if (profile.isPrivate && !isAdmin && !isOwner) {
+       return res.status(403).render('403', data(req, 'Access Denied', 'core'));
+    }
 
     let countryCode = 'xx';
     let accountCreatedAt: number | null = null;
@@ -295,6 +334,16 @@ profileRouter.get(
           break;
         }
       }
+    }
+
+    // Redirect from raw refid URL to username alias for cleaner URLs.
+    // Only redirect if the username is a valid URL-safe alias (same rules as the alias resolver).
+    // Usernames with @, spaces, or other special chars will keep the refid in the URL.
+    const isUrlSafeUsername = accountUsername &&
+      accountUsername.length <= 64 &&
+      /^[\w\-]+$/.test(accountUsername); // Only alphanumeric, underscore, hyphen (no dots, no @)
+    if (isUrlSafeUsername && req.path.toLowerCase().includes(refid.toLowerCase())) {
+      return res.redirect(301, `/profile/${accountUsername}`);
     }
 
     let sdvxStats: any = { volforce: 0, totalScores: 0, topPlays: [], recentPlays: [], firstPlaces: [] };
@@ -583,7 +632,7 @@ profileRouter.get(
     const followerCount = followers.length;
     let isFollowing = false;
     let myRefid = null;
-    if (req.session.user && req.session.user.cardNumber) {
+    if (req.session?.user?.cardNumber) {
       const myCard = await FindCard(req.session.user.cardNumber);
       if (myCard && myCard.__refid) {
         myRefid = myCard.__refid;
@@ -627,6 +676,7 @@ profileRouter.get(
 
 profileRouter.post(
   '/profile/:refid',
+  authMiddleware,
   editRateLimit,
   urlencoded({ extended: true, limit: '50mb' }),
   wrap(async (req, res) => {
@@ -671,6 +721,14 @@ profileRouter.post(
     if (req.body.twitter !== undefined)    update.twitter    = socialHandle(req.body.twitter)   ?? '';
     if (req.body.discord !== undefined)    update.discord    = socialHandle(req.body.discord)   ?? '';
     if (req.body.website !== undefined)    update.website    = webUrl(req.body.website)         ?? '';
+    update.isPrivate = req.body.isPrivate === 'on';
+
+    // If privacy toggled, immediately invalidate leaderboard cache so the change is instant
+    const oldProfile = await FindProfile(refid);
+    if (oldProfile && !!oldProfile.isPrivate !== update.isPrivate) {
+      const { invalidateLeaderboardCache } = require('./leaderboard');
+      invalidateLeaderboardCache();
+    }
 
     await UpdateProfile(refid, update);
     req.flash('formOk', 'Updated');
@@ -680,6 +738,7 @@ profileRouter.post(
 
 profileRouter.post(
   '/profile/:refid/media',
+  authMiddleware,
   mediaRateLimit,
   upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'banner', maxCount: 1 }]),
   wrap(async (req, res) => {
@@ -721,6 +780,7 @@ profileRouter.post(
 
 profileRouter.post(
   '/profile/:refid/follow',
+  authMiddleware,
   followRateLimit,
   wrap(async (req, res) => {
     const targetRefid = req.params['refid'];
@@ -765,6 +825,7 @@ profileRouter.delete(
 
 profileRouter.delete(
   '/card/:cid',
+  authMiddleware,
   wrap(async (req, res) => {
     const cid = req.params['cid'];
     const card = await FindCard(cid);
@@ -791,6 +852,7 @@ profileRouter.delete(
 
 profileRouter.post(
   '/profile/:refid/card',
+  authMiddleware,
   json({ limit: '50mb' }),
   wrap(async (req, res) => {
     const refid = req.params['refid'];
