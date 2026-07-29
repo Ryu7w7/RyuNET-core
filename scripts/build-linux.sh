@@ -11,7 +11,7 @@ VERSION=${BASH_REMATCH[1]}
 echo "Building Version $VERSION for Linux"
 
 echo "NPM Install"
-npm ci --legacy-peer-deps
+npm ci --include=dev --legacy-peer-deps
 
 echo "Building Typescripts"
 npx tsc
@@ -21,7 +21,7 @@ node ./node_modules/@vercel/ncc/dist/ncc/cli.js build ./dist/AsphyxiaCore.js -o 
 
 echo "Setting Up Build Environment"
 cd ./build-env
-npm ci --legacy-peer-deps
+npm ci --include=dev --legacy-peer-deps
 cp -r typescript ./node_modules/
 
 echo "Packing binaries"
