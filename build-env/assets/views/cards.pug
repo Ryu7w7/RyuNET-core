@@ -31,10 +31,9 @@ block content
                 .notification.is-success.is-light #{formMessage.message}
             hr
             if profileCards && profileCards.length > 0
-              .columns.is-multiline.is-centered
+              .cards-container(style="display: flex; flex-wrap: wrap; gap: 2rem; justify-content: center;")
                 each card, index in profileCards
-                  .column.is-half
-                    .ecard.box.is-paddingless(geopattern=card.cid style="position: relative;")
+                  .ecard.box.is-paddingless(geopattern=card.cid style="position: relative; margin: 0;")
                       .ecard-brand RyuNET
                       .ecard-print
                         .desc Card Number
