@@ -207,7 +207,10 @@ export class EamuseSend {
     let result = null;
     try {
       const filePath = path.join(PLUGIN_PATH, plugin, template);
-      const fn = pugCompileFile(filePath, { doctype: 'xml' });
+      // cache: true — templates (e.g. SDVX load.pug) are compiled once per
+      // boot instead of on every player login; plugin reloads on server
+      // restart pick up template edits.
+      const fn = pugCompileFile(filePath, { doctype: 'xml', cache: true });
       result = xmlToData(fn(data));
     } catch (err) {
       Logger.error(err, { plugin });

@@ -196,6 +196,13 @@ export const EamuseMiddleware: RequestHandler = async (req, res, next) => {
 };
 
 export const EamuseRoute = (router: EamuseRootRouter): RequestHandler => {
+  // UpdateCabinetLastSeen is a synchronous SQLite write executed on every
+  // request from every cabinet (keepalives, facility polls, score saves...).
+  // With many cabinets online this saturates the event loop with writes that
+  // nobody reads in real time, so throttle to once per cabinet per minute.
+  const lastSeenWriteAt = new Map<string, number>();
+  const CABINET_LAST_SEEN_INTERVAL_MS = 60 * 1000;
+
   const route: RequestHandler = async (req, res, next) => {
     if ((req as any).skip) {
       next();
@@ -227,7 +234,12 @@ export const EamuseRoute = (router: EamuseRootRouter): RequestHandler => {
         }
       }
       if (cabinet) {
-        UpdateCabinetLastSeen(body.pcbid);
+        const now = Date.now();
+        const lastWrite = lastSeenWriteAt.get(body.pcbid) || 0;
+        if (now - lastWrite >= CABINET_LAST_SEEN_INTERVAL_MS) {
+          lastSeenWriteAt.set(body.pcbid, now);
+          UpdateCabinetLastSeen(body.pcbid);
+        }
       }
     }
 
