@@ -309,6 +309,10 @@ export class SqliteStore {
     // than the default rollback journal.
     this.db.exec('PRAGMA journal_mode = WAL');
     this.db.exec('PRAGMA synchronous = NORMAL');
+    // Don't fail fast when a single writer holds the lock during a burst —
+    // wait up to 5s (same order as the in-game HTTP timeout) so Asian
+    // players on high RTT don't get an instant SQLITE_BUSY.
+    this.db.exec('PRAGMA busy_timeout = 5000');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS documents (
         _id        TEXT PRIMARY KEY,
@@ -343,12 +347,17 @@ export class SqliteStore {
     addColumnIfMissing(
       `ALTER TABLE documents ADD COLUMN _mid INTEGER GENERATED ALWAYS AS (CAST(json_extract(data, '$.mid') AS INTEGER)) VIRTUAL`
     );
+    addColumnIfMissing(
+      `ALTER TABLE documents ADD COLUMN _version INTEGER GENERATED ALWAYS AS (CAST(json_extract(data, '$.version') AS INTEGER)) VIRTUAL`
+    );
     // Indexes covering the hot query patterns:
     //   - collection alone  (hiscore scan, nautica list)
+    //   - collection + version (hiscore scan narrows to one version)
     //   - refid + collection (load_m: all scores for a player)
     //   - refid + collection + mid (save_m: one score row for a player+song)
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_documents_collection       ON documents(_collection);
+      CREATE INDEX IF NOT EXISTS idx_documents_coll_version     ON documents(_collection, _version);
       CREATE INDEX IF NOT EXISTS idx_documents_s_collection     ON documents(__s, _collection);
       CREATE INDEX IF NOT EXISTS idx_documents_refid_collection ON documents(__refid, _collection);
       CREATE INDEX IF NOT EXISTS idx_documents_refid_coll_mid   ON documents(__refid, _collection, _mid);
@@ -398,6 +407,8 @@ export class SqliteStore {
       if (typeof coll === 'string') { wheres.push('_collection = ?'); params.push(coll); }
       const mid = query.mid;
       if (typeof mid === 'number') { wheres.push('_mid = ?'); params.push(mid); }
+      const version = query.version;
+      if (typeof version === 'number') { wheres.push('_version = ?'); params.push(version); }
     }
     return {
       sql: wheres.length ? ' WHERE ' + wheres.join(' AND ') : '',
