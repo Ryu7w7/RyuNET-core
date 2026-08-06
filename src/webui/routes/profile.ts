@@ -19,7 +19,7 @@ import { data, userOwnsProfile } from '../shared/helpers';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { sdvxJacketUrl } from '../../utils/sdvx_jacket_resolver';
+import { sdvxJacketUrl, prewarmJacketCache } from '../../utils/sdvx_jacket_resolver';
 import rateLimit from 'express-rate-limit';
 
 // ---------------------------------------------------------------------------
@@ -73,6 +73,13 @@ function loadSongDBs(): void {
 
 /** Try to load DBs at startup (non-fatal if plugins aren't installed yet). */
 try { loadSongDBs(); } catch (e) {}
+
+// Pre-warm the jacket folder cache with all known song IDs (fire-and-forget,
+// non-fatal). Ensures jacket lookups never do synchronous disk scans later.
+try {
+  const mids = [..._sdvxSongMap.keys(), ..._sdvxCustomSongMap.keys()];
+  if (mids.length > 0) void prewarmJacketCache(mids);
+} catch (e) {}
 
 /**
  * Maps the type index to the difficulty key used in music_db.json
@@ -128,7 +135,7 @@ function getSdvxLevel(mid: number | string, type: number | string): string | nul
  *  type 3 = inf slot — actual name from inf_ver: 1=INF, 2=GRV, 3=HVN, 4=VVD, 5=MXM
  *  type 4 = MXM (separate slot in newer songs)
  */
-function getSdvxDiff(mid: number | string, type: number | string): string {
+export function getSdvxDiff(mid: number | string, type: number | string): string {
   const t = Number(type);
   let name: string;
   if (t === 0) name = 'NOV';
@@ -149,7 +156,7 @@ function getSdvxDiff(mid: number | string, type: number | string): string {
 }
 
 /** O(1) title lookup from cached maps. */
-function getSdvxTitle(mid: number | string): string {
+export function getSdvxTitle(mid: number | string): string {
   const midStr = String(mid);
   const song = _sdvxCustomSongMap.get(midStr) || _sdvxSongMap.get(midStr);
   return song?.info?.title_name || `Song ID ${mid}`;
@@ -416,10 +423,19 @@ profileRouter.get(
               title: getSdvxTitle(play.mid),
               diff: getSdvxDiff(play.mid, play.type),
               score: play.score,
+              exscore: play.exscore || 0,
               clear: play.clear,
+              grade: play.grade || 0,
               volforce: Number(play.volforce / 1000).toFixed(3),
               dateStr: timeAgo(play.updatedAt),
-              jacketUrl: sdvxJacketUrl(play.mid, play.type)
+              jacketUrl: sdvxJacketUrl(play.mid, play.type),
+              maxChain: play.maxChain || 0,
+              critical: play.critical || 0,
+              s_critical: play.s_critical || play.just || 0,
+              near: play.near || 0,
+              error: play.error || 0,
+              early: play.early || 0,
+              late: play.late || 0
             }));
             // Trend
             const trendRecsSdvx = [...records].sort((a: any, b: any) => {
@@ -458,10 +474,19 @@ profileRouter.get(
               title: getSdvxTitle(play.mid),
               diff: getSdvxDiff(play.mid, play.type),
               score: play.score,
+              exscore: play.exscore || 0,
               clear: play.clear,
+              grade: play.grade || 0,
               dateStr: timeAgo(play.updatedAt),
               jacketUrl: sdvxJacketUrl(play.mid, play.type),
-              isFirstPlace: firstPlaceKeys.has(`${play.mid}:${play.type}`)
+              isFirstPlace: firstPlaceKeys.has(`${play.mid}:${play.type}`),
+              maxChain: play.maxChain || 0,
+              critical: play.critical || 0,
+              s_critical: play.s_critical || play.just || 0,
+              near: play.near || 0,
+              error: play.error || 0,
+              early: play.early || 0,
+              late: play.late || 0
             }));
             
             // First Places — with timestamp from user's own records
@@ -477,14 +502,23 @@ profileRouter.get(
 
             sdvxStats.firstPlaces = userFirsts.map((f: any) => {
                const [mid, type] = f.key.split(':');
-               const matchedRecord = recordsByKey.get(f.key);
+               const matchedRecord = recordsByKey.get(f.key) || {};
                return {
                   title: getSdvxTitle(mid),
                   diff: getSdvxDiff(mid, type),
                   score: f.score,
+                  exscore: matchedRecord.exscore || f.exscore || 0,
                   clear: f.clear,
+                  grade: matchedRecord.grade || f.grade || 0,
                   dateStr: matchedRecord?.updatedAt ? timeAgo(matchedRecord.updatedAt) : null,
-                  jacketUrl: sdvxJacketUrl(mid, type)
+                  jacketUrl: sdvxJacketUrl(mid, type),
+                  maxChain: matchedRecord.maxChain || 0,
+                  critical: matchedRecord.critical || 0,
+                  s_critical: matchedRecord.s_critical || matchedRecord.just || f.s_critical || f.just || 0,
+                  near: matchedRecord.near || 0,
+                  error: matchedRecord.error || 0,
+                  early: matchedRecord.early || 0,
+                  late: matchedRecord.late || 0
                };
             });
           }
