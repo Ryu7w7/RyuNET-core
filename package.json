@@ -14,6 +14,7 @@
     "migrate-linux": "bash scripts/migrate-deploy.sh"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.3",
     "@types/archiver": "^6.0.2",
     "@types/argparse": "^1.0.38",
     "@types/bcryptjs": "^2.4.6",
@@ -39,6 +40,7 @@
     "chalk": "^4.0.0",
     "connect-flash": "^0.1.1",
     "cookie-parser": "^1.4.5",
+    "discord.js": "^14.27.0",
     "ejs": "^3.1.2",
     "express": "^4.17.1",
     "express-rate-limit": "^8.3.2",

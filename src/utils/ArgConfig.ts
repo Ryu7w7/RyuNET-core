@@ -99,6 +99,22 @@ function CoreConfig() {
     needRestart: true,
   });
 
+  CONFIG_MAP['core'].set('discord_bot_token', {
+    name: 'Discord Bot Token',
+    desc: 'Token for the Discord bot integration. Leave empty to disable.',
+    type: 'string',
+    default: '',
+    needRestart: true,
+  });
+
+  CONFIG_MAP['core'].set('discord_client_id', {
+    name: 'Discord Client ID',
+    desc: 'Client ID for registering Slash Commands.',
+    type: 'string',
+    default: '',
+    needRestart: true,
+  });
+
   CONFIG_MAP['core'].set('ping_ip', {
     name: 'Ping IP',
     type: 'string',
@@ -199,6 +215,20 @@ function CoreConfig() {
     type: 'boolean',
     default: true,
     desc: 'Enable the public /api/rp/lookup endpoint for SDVX Rich Presence name detection',
+  });
+
+  CONFIG_MAP['core'].set('sdvx_music_root', {
+    name: 'SDVX Music Root',
+    type: 'string',
+    default: '',
+    desc: 'Absolute path to SDVX music folder (e.g. /mnt/extra/bhub/SDVX/data/music) to enable accurate local jacket resolution',
+  });
+
+  CONFIG_MAP['core'].set('sdvx_custom_music_root', {
+    name: 'SDVX Custom Music Root',
+    type: 'string',
+    default: '',
+    desc: 'Absolute path to Custom SDVX music folder for modded/custom songs jackets',
   });
 }
 CoreConfig();
@@ -313,9 +343,10 @@ export const CONFIG: any = new Proxy(
   {},
   {
     get: (_, prop) => {
-      return ARGS[prop] || INI[prop];
+      return ARGS[prop] || (INI ? INI[prop] : undefined);
     },
     set: (_, prop, value) => {
+      if (!INI) INI = {};
       INI[prop] = value;
       return true;
     },

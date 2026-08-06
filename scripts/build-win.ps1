@@ -24,6 +24,22 @@ Set-Location -Path ".\build-env"
 npm ci
 Copy-Item -Recurse -Path "typescript" -Destination "node_modules/"
 
+# Inject *.node into pkg.assets so @yao-pkg/pkg extracts native binaries at runtime
+$pkgJsonPath = ".\package.json"
+$pkgJson = Get-Content $pkgJsonPath | ConvertFrom-Json
+$pkgJson.pkg.assets += "./*.node"
+$pkgJson.pkg.assets += "./*.dat"
+$pkgJson | ConvertTo-Json -Depth 10 | Set-Content $pkgJsonPath
+
+# Copy icudtl.dat (Skia Unicode data required by @napi-rs/canvas text rendering)
+$icuSource = "..\node_modules\@napi-rs\canvas-win32-x64-msvc\icudtl.dat"
+if (Test-Path $icuSource) {
+    Copy-Item $icuSource ".\icudtl.dat" -Force
+    Write-Output "Copied icudtl.dat to build-env"
+} else {
+    Write-Output "WARNING: icudtl.dat not found, text rendering in Discord bot may crash"
+}
+
 Set-Location -Path ".."
 
 # @yao-pkg/pkg fetches Node 22 base binaries from yao-pkg/pkg-fetch GitHub
@@ -58,4 +74,10 @@ if (Test-Path ".\icon.ico") {
     Move-Item -Force ".\build\asphyxia-core-x64.iconed.exe" ".\build\asphyxia-core-x64.exe"
 } else {
     Write-Output "icon.ico not found at repo root; skipping icon injection"
+}
+
+# Copy icudtl.dat to build output so it sits next to the .exe for Discord bot text rendering
+if (Test-Path ".\build-env\icudtl.dat") {
+    Copy-Item ".\build-env\icudtl.dat" ".\build\icudtl.dat" -Force
+    Write-Output "Copied icudtl.dat to build output"
 }

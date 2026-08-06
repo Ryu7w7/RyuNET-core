@@ -13,6 +13,7 @@ import path from 'path';
 import { ASSETS_PATH, LoadCoreDB, SeedDefaultAdmin } from './utils/EamuseIO';
 import open from 'open';
 import { Migrate } from './utils/migration';
+import { StartDiscordBot } from './discord/bot';
 
 function isIPv6(ip: string) {
   return !!/(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))/.test(
@@ -77,6 +78,15 @@ function Main() {
   EAMUSE.use('/static', express.static(path.join(ASSETS_PATH, 'static')));
   const UPLOADS_PATH = path.join((process as any).pkg ? path.dirname(process.argv0) : process.cwd(), 'uploads');
   EAMUSE.use('/uploads', express.static(UPLOADS_PATH));
+  
+  // Custom and Official local jackets support via Express
+  if (CONFIG.sdvx_custom_music_root) {
+    EAMUSE.use('/jackets/sdvx', express.static(CONFIG.sdvx_custom_music_root));
+  }
+  if (CONFIG.sdvx_music_root) {
+    EAMUSE.use('/jackets/sdvx', express.static(CONFIG.sdvx_music_root));
+  }
+
   EAMUSE.use(webui);
 
   // ========== LISTEN ============
@@ -108,6 +118,11 @@ function Main() {
         open(`http://${openAddr}:${CONFIG.port}`);
       } catch { }
     }
+
+    // Discord bot runs in isolation — any failure must NEVER crash the game server
+    StartDiscordBot().catch(err => {
+      Logger.error(`[Discord] Fatal error during bot startup (server is unaffected): ${err}`);
+    });
   });
 
   server.on('error', (err: any) => {

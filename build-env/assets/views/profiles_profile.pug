@@ -24,6 +24,62 @@ block head
       background-position: center;
       position: relative;
     }
+    /* Score Modal Custom Styles */
+    #score-detail-modal .modal-content { background: transparent; overflow: visible; }
+    .score-modal-content { font-family: 'Outfit', sans-serif, system-ui; background: rgba(13, 13, 20, 0.97); border-radius: 16px; box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 20px 60px rgba(0,0,0,0.8); color: #fff; padding: 0; overflow: hidden; width: 820px; max-width: 95vw; animation: modal-in 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) both; }
+    @keyframes modal-in { from { transform: scale(0.85) translateY(20px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+    .score-header { padding: 20px 24px 16px; position: relative; background: linear-gradient(135deg, #1c1c2e 0%, #12121e 100%); border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 16px; }
+    .score-header-jacket { width: 72px; height: 72px; border-radius: 8px; object-fit: cover; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.12); background: #111; }
+    .score-header-text { flex: 1; min-width: 0; }
+    .score-header h2 { margin: 0 0 6px 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; color: #fff; }
+    .score-subtitle { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+    .score-played-by { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .score-played-by-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255,255,255,0.2); flex-shrink: 0; }
+    .score-played-by-text { font-size: 12px; color: rgba(255,255,255,0.45); font-weight: 500; }
+    .score-played-by-name { font-size: 12px; color: rgba(255,255,255,0.8); font-weight: 700; margin-left: 2px; }
+    .diff-badge { padding: 3px 12px; border-radius: 4px; font-weight: 700; font-size: 13px; letter-spacing: 1px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); text-transform: uppercase; }
+    .level-badge { padding: 3px 10px; border-radius: 4px; font-weight: 800; font-size: 14px; background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.1); letter-spacing: 0.5px; }
+    .score-body { display: flex; padding: 28px 24px 28px 20px; gap: 20px; position: relative; background: linear-gradient(180deg, #0f0f1a 0%, #0a0a12 100%); align-items: center; overflow: visible; }
+    .score-rank-container { flex: 0 0 160px; min-width: 160px; display: flex; justify-content: center; align-items: center; position: relative; padding: 14px 10px; overflow: visible; }
+    .score-rank-container::before { content: ''; position: absolute; width: 140px; height: 140px; border-radius: 50%; background: var(--rank-color, rgba(255, 120, 0, 0.2)); filter: blur(35px); z-index: 0; }
+    #modal-rank { font-size: 90px; font-weight: 900; font-style: italic; line-height: 1.3; padding: 4px 10px; position: relative; z-index: 1; background: var(--rank-gradient, linear-gradient(180deg, #ffb84d 0%, #ff6600 100%)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 4px 12px var(--rank-shadow, rgba(255,102,0,0.5))); user-select: none; white-space: nowrap; display: inline-block; }
+    #modal-rank[data-grade="S"] { --rank-gradient: linear-gradient(180deg, #ffe066 0%, #ffaa00 100%); --rank-shadow: rgba(255,170,0,0.6); --rank-color: rgba(255,170,0,0.2); font-size: 92px; }
+    #modal-rank[data-grade="AAA+"] { --rank-gradient: linear-gradient(180deg, #ff88cc 0%, #cc44aa 100%); --rank-shadow: rgba(200,50,150,0.6); --rank-color: rgba(200,50,150,0.2); font-size: 50px; }
+    #modal-rank[data-grade="AAA"] { --rank-gradient: linear-gradient(180deg, #bb88ff 0%, #7733cc 100%); --rank-shadow: rgba(100,50,200,0.6); --rank-color: rgba(100,50,200,0.2); font-size: 64px; }
+    #modal-rank[data-grade="AA+"] { --rank-gradient: linear-gradient(180deg, #66aaff 0%, #2255cc 100%); --rank-shadow: rgba(30,80,200,0.6); --rank-color: rgba(30,80,200,0.2); font-size: 58px; }
+    #modal-rank[data-grade="AA"] { --rank-gradient: linear-gradient(180deg, #66aaff 0%, #2255cc 100%); --rank-shadow: rgba(30,80,200,0.6); --rank-color: rgba(30,80,200,0.2); font-size: 74px; }
+    #modal-rank[data-grade="A+"] { --rank-gradient: linear-gradient(180deg, #66ffdd 0%, #00aa88 100%); --rank-shadow: rgba(0,150,100,0.5); --rank-color: rgba(0,150,100,0.2); font-size: 68px; }
+    #modal-rank[data-grade="A"] { --rank-gradient: linear-gradient(180deg, #66ffdd 0%, #00aa88 100%); --rank-shadow: rgba(0,150,100,0.5); --rank-color: rgba(0,150,100,0.2); font-size: 86px; }
+    .score-stats { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+    .score-number { font-size: 58px; font-weight: 200; letter-spacing: -2px; line-height: 1; font-variant-numeric: tabular-nums; }
+    .score-meta-row { display: flex; gap: 20px; margin-top: 8px; }
+    .score-meta-item { display: flex; flex-direction: column; gap: 2px; }
+    .score-meta-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.4); font-weight: 600; }
+    .score-meta-value { font-size: 22px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+    #modal-maxchain { color: #44ffcc; }
+    #modal-exscore { color: #ffcc44; }
+    .score-medal-row { margin-top: 10px; }
+    #modal-medal { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
+    .judgements-container { flex: 0 0 220px; background: rgba(0,0,0,0.4); border-radius: 10px; padding: 18px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 14px; }
+    .judgements-title { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px; margin-bottom: 2px; }
+    .judgement-row { display: flex; align-items: center; gap: 8px; }
+    .j-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .j-label { flex: 1; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.85; }
+    .j-value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; min-width: 55px; }
+    .j-sub-row { display: flex; justify-content: flex-end; gap: 12px; font-size: 11px; color: rgba(255,255,255,0.4); font-weight: 600; margin-top: -8px; padding-right: 2px; }
+    .j-sub-item { display: flex; align-items: center; gap: 4px; }
+    .j-sub-item .arrow-early { color: #44bbff; }
+    .j-sub-item .arrow-late { color: #ff8844; }
+    .j-row-scrit .j-dot { background: #ffe600; }
+    .j-row-scrit .j-label, .j-row-scrit .j-value { color: #ffe600; }
+    .j-row-crit .j-dot { background: #ffaa00; }
+    .j-row-crit .j-label, .j-row-crit .j-value { color: #ffaa00; }
+    .j-row-near .j-dot { background: #44ffcc; }
+    .j-row-near .j-label, .j-row-near .j-value { color: #44ffcc; }
+    .j-row-error .j-dot { background: #ff3344; }
+    .j-row-error .j-label, .j-row-error .j-value { color: #ff3344; }
+    .score-card, .notification li { transition: transform 0.15s ease, background-color 0.15s ease; cursor: pointer !important; }
+    .score-card:hover, .notification li:hover { transform: translateY(-2px); filter: brightness(1.1); }
     .media-overlay {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -524,7 +580,7 @@ block content
             .notification.is-dark.has-text-left.mb-6
                ul(style="list-style: none; padding: 0;")
                  each play in sdvxStats.recentPlays
-                   li.mb-3(class=(play.clear ? getSdvxClearClass(play.clear) : '') style="padding-left: 10px; border-radius: 4px;")
+                   li.mb-3(class=(play.clear ? getSdvxClearClass(play.clear) : '') style="padding-left: 10px; border-radius: 4px; cursor: pointer;" onclick="openSdvxScoreModal(this)" data-play=JSON.stringify(play))
                      .is-flex.is-align-items-center
                        img(src=play.jacketUrl onerror="jacketFallback(this)" style="width: 40px; height: 40px; border-radius: 4px; margin-right: 12px; object-fit: cover;")
                        div(style="flex: 1;")
@@ -542,7 +598,7 @@ block content
             h3.section-title First Place Scores (#{sdvxStats.firstPlaces.length})
             ul.score-list#sdvx-first-places
               each play, index in sdvxStats.firstPlaces
-                li.score-card(style=(index >= 5 ? "display: none;" : "") class=(play.clear ? getSdvxClearClass(play.clear) : ''))
+                li.score-card(style=(index >= 5 ? "display: none;" : "") class=(play.clear ? getSdvxClearClass(play.clear) : '') onclick="openSdvxScoreModal(this)" data-play=JSON.stringify(play))
                   img.score-jacket(src=play.jacketUrl onerror="jacketFallback(this)")
                   .score-info
                     .score-title #{play.title}
@@ -565,7 +621,7 @@ block content
             h3.section-title Top Plays B50
             ul.score-list#sdvx-top-plays
               each play, index in sdvxStats.topPlays
-                li.score-card(style=(index >= 5 ? "display: none;" : "") class=(play.clear ? getSdvxClearClass(play.clear) : ''))
+                li.score-card(style=(index >= 5 ? "display: none;" : "") class=(play.clear ? getSdvxClearClass(play.clear) : '') onclick="openSdvxScoreModal(this)" data-play=JSON.stringify(play))
                   img.score-jacket(src=play.jacketUrl onerror="jacketFallback(this)")
                   .score-info
                     .score-title #{play.title}
@@ -690,6 +746,8 @@ block content
 block scripts
   script.
     const JACKET_DUMMY = 'https://jackets.ryu7w7.xyz/sdvx/jk_dummy.png';
+    const MODAL_PLAYER_NAME = '!{profile.name}';
+    const MODAL_PLAYER_AVATAR = '!{profile.avatarUrl ? "/uploads/" + profile.avatarUrl : "/static/img/avatar.jpg"}';
     // jacketFallback MUST be defined before any <img> onerror fires.
     function jacketFallback(img) {
       // Try falling back: _4 -> _3 -> _2 -> _1 -> dummy
@@ -830,4 +888,117 @@ block scripts
       }
     });
 
+    function openSdvxScoreModal(el) {
+      try {
+        var data = JSON.parse(el.getAttribute('data-play'));
+        if (!data) return;
 
+        document.getElementById('modal-songname').innerText = data.title || 'Song Name';
+        document.getElementById('modal-diff').innerText = (data.diff || 'MXM').toUpperCase();
+        
+        var jacketEl = document.getElementById('modal-jacket');
+        if (jacketEl) jacketEl.src = data.jacketUrl || '';
+        var avatarEl = document.getElementById('modal-player-avatar');
+        if (avatarEl) avatarEl.src = MODAL_PLAYER_AVATAR;
+        var nameEl = document.getElementById('modal-player-name');
+        if (nameEl) nameEl.innerText = MODAL_PLAYER_NAME;
+        
+        var gradeStr = getSdvxGradeText(data.score, data.grade);
+        var rankEl = document.getElementById('modal-rank');
+        rankEl.innerText = gradeStr;
+        rankEl.setAttribute('data-grade', gradeStr);
+
+        document.getElementById('modal-score').innerText = Number(data.score || 0).toLocaleString();
+        document.getElementById('modal-exscore').innerText = Number(data.exscore || 0).toLocaleString();
+        document.getElementById('modal-maxchain').innerText = Number(data.maxChain || 0).toLocaleString();
+        document.getElementById('modal-scrit').innerText = Number(data.s_critical || 0).toLocaleString();
+        document.getElementById('modal-crit').innerText = Number(data.critical || 0).toLocaleString();
+        document.getElementById('modal-near').innerText = Number(data.near || 0).toLocaleString();
+        document.getElementById('modal-error').innerText = Number(data.error || 0).toLocaleString();
+
+        var medalText = getSdvxMedalText(data.clear);
+        document.getElementById('modal-medal').innerText = medalText;
+
+        document.getElementById('score-detail-modal').classList.add('is-active');
+        document.documentElement.classList.add('is-clipped');
+      } catch(e) {
+        console.error(e);
+      }
+    }
+
+    function closeScoreModal() {
+      var modal = document.getElementById('score-detail-modal');
+      if (modal) modal.classList.remove('is-active');
+      document.documentElement.classList.remove('is-clipped');
+    }
+
+    function getSdvxGradeText(score, rawGrade) {
+      if (score >= 9900000) return 'S';
+      if (score >= 9800000) return 'AAA+';
+      if (score >= 9700000) return 'AAA';
+      if (score >= 9500000) return 'AA+';
+      if (score >= 9300000) return 'AA';
+      if (score >= 9000000) return 'A+';
+      if (score >= 8700000) return 'A';
+      if (score >= 7500000) return 'B';
+      if (score >= 6500000) return 'C';
+      return 'D';
+    }
+
+    function getSdvxMedalText(clear) {
+      var labels = ["NO DATA", "PLAYED", "EFFECTIVE CLEAR", "EXCESSIVE CLEAR", "MAXXIVE CLEAR", "ULTIMATE CHAIN", "PERFECT ULTIMATE CHAIN"];
+      return labels[clear] || "PLAYED";
+    }
+
+block modal
+  div.modal#score-detail-modal
+    div.modal-background(onclick="closeScoreModal()")
+    div.modal-content.score-modal-content
+      div.score-header
+        img.score-header-jacket#modal-jacket(src="" onerror="jacketFallback(this)" alt="")
+        div.score-header-text
+          h2#modal-songname Song Name
+          div.score-subtitle
+            span.diff-badge#modal-diff MXM
+          div.score-played-by
+            img.score-played-by-avatar#modal-player-avatar(src="" alt="")
+            span.score-played-by-text played by 
+            span.score-played-by-name#modal-player-name Player
+      
+      div.score-body
+        div.score-rank-container
+          div#modal-rank(data-grade="S") S
+
+        div.score-stats
+          div.score-number#modal-score 9,993,855
+          div.score-meta-row
+            div.score-meta-item
+              span.score-meta-label EX Score
+              span.score-meta-value#modal-exscore 0
+            div.score-meta-item
+              span.score-meta-label Max Combo
+              span.score-meta-value#modal-maxchain 0
+          div.score-medal-row
+            span#modal-medal PLAYED
+
+        div.judgements-container
+          div.judgements-title Judgements
+          div.judgement-row.j-row-scrit
+            span.j-dot
+            span.j-label S-CRITICAL
+            span.j-value#modal-scrit 0
+          div.judgement-row.j-row-crit
+            span.j-dot
+            span.j-label CRITICAL
+            span.j-value#modal-crit 0
+          div.judgement-row.j-row-near
+            span.j-dot
+            span.j-label NEAR
+            span.j-value#modal-near 0
+
+          div.judgement-row.j-row-error
+            span.j-dot
+            span.j-label ERROR
+            span.j-value#modal-error 0
+
+    button.modal-close.is-large(aria-label="close" onclick="closeScoreModal()")
