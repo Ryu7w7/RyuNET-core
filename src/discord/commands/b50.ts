@@ -60,7 +60,7 @@ export async function handleBest50Command(interaction: any) {
     (m: number, r: any) => Math.max(m, r.updatedAt ? new Date(r.updatedAt).getTime() : 0),
     0
   );
-  const cacheKey = `b50:${refid}:${profile.name}:${records.length}:${maxUpdatedAt}`;
+  const cacheKey = `b50:v2:${refid}:${profile.name}:${records.length}:${maxUpdatedAt}`;
 
   const cachedPng = getCachedRender(cacheKey);
   if (cachedPng) {

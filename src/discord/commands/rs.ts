@@ -76,7 +76,7 @@ export async function handleRecentScoreCommand(interaction: any) {
     (m: number, r: any) => Math.max(m, r.updatedAt ? new Date(r.updatedAt).getTime() : 0),
     0
   );
-  const cacheKey = `rs:${refid}:${profile.name}:${records.length}:${maxUpdatedAt}`;
+  const cacheKey = `rs:v2:${refid}:${profile.name}:${records.length}:${maxUpdatedAt}`;
 
   const cachedPng = getCachedRender(cacheKey);
   if (cachedPng) {

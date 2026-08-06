@@ -2,9 +2,14 @@ import { createCanvas, loadImage, GlobalFonts, Image } from '@napi-rs/canvas';
 import path from 'path';
 import { ASSETS_PATH } from '../utils/EamuseIO';
 import { loadJacketWithCache, loadManyJackets } from './jacket_cache';
+import { registerDiscordFonts, CJK_FONT_FAMILY } from './fonts';
 
-// Helper fonts for Windows to support Japanese text
-const FONT_FAMILY = '"Outfit", "Segoe UI", "Meiryo", "Yu Gothic", "MS PGothic", sans-serif';
+// Register a system CJK font (Noto Sans CJK etc.) so Japanese titles render
+// on Linux/ARM — Windows fonts (Meiryo/Yu Gothic) don't exist there.
+registerDiscordFonts();
+
+// Font stack: RyuNET CJK first (auto-registered), then Windows/fallback fonts.
+const FONT_FAMILY = `"${CJK_FONT_FAMILY}", "Outfit", "Noto Sans CJK JP", "Noto Sans JP", "Segoe UI", "Meiryo", "Yu Gothic", "MS PGothic", sans-serif`;
 
 // Colors from RyuNET modern.css and score_modal.css
 const COLORS = {
@@ -113,7 +118,7 @@ export async function renderRecentScore(play: any, profile: any): Promise<Buffer
   // Jacket
   const jX = 24, jY = 24, jSize = 72;
   const jacketImg = await loadJacketWithCache(play.jacketUrl);
-  drawJacket(ctx, jacketImg, jX, jY, jSize, jSize, '#111');
+  drawJacket(ctx, jacketImg, jX, jY, jSize, 8, '#111');
   // Jacket border
   ctx.strokeStyle = 'rgba(255,255,255,0.12)';
   ctx.lineWidth = 1;
@@ -330,7 +335,7 @@ export async function renderB50(plays: any[], profile: any, volforce: number): P
     // Jacket
     const jSize = 50;
     const jacketImg = jacketImages.get(play.jacketUrl) || null;
-    drawJacket(ctx, jacketImg, x + 10, y + 10, jSize, jSize, COLORS.panel2);
+    drawJacket(ctx, jacketImg, x + 10, y + 10, jSize, 4, COLORS.panel2);
     if (jacketImg) {
       ctx.strokeStyle = COLORS.border;
       ctx.strokeRect(x + 10, y + 10, jSize, jSize);
