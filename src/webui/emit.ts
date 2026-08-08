@@ -62,6 +62,8 @@ ajax.post(
       'nauticaDeletedList', 'nauticaReconvert', 'nauticaReconvertAll',
       'nauticaExportList', 'nauticaImportList',
       'manageEvents', 'manageStartupFlags', 'copyResourcesFromGame',
+      'getPnmAssetUpdateLog', 'getPnmAssetStorage', 'clearPnmGeneratedAssets',
+      'syncPnmDecorationAssets',
     ];
     if (ADMIN_ONLY_EVENTS.includes(event)) {
       if (!req.session.user || !req.session.user.admin) {

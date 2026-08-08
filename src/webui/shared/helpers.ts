@@ -27,6 +27,7 @@ const ADMIN_ONLY_PAGES = [
   'update webui assets',
   'weekly score attack',
   'custom charts admin',
+  'asset update',
 ];
 
 export async function userOwnsProfile(req: Request, refid: string): Promise<boolean> {
