@@ -589,6 +589,12 @@ export async function UpdateUserAccount(
       );
 
       await CoreDB.updateAsync(
+        { __s: 'lastfm_session', username },
+        { $set: { username: newUsername } },
+        { multi: true }
+      );
+
+      await CoreDB.updateAsync(
         { __s: 'oauth_client', createdBy: username },
         { $set: { createdBy: newUsername } },
         { multi: true }
@@ -839,6 +845,65 @@ export async function GetTachiTokenByRefid(refid: string): Promise<string | null
   } catch (err) {
     Logger.error(err);
     return null;
+  }
+}
+
+export async function SaveLastfmSession(username: string, sessionKey: string, lastfmUsername: string) {
+  try {
+    const existing = await CoreDB.findOneAsync<any>({ __s: 'lastfm_session', username });
+    if (existing) {
+      await CoreDB.updateAsync({ __s: 'lastfm_session', username }, { $set: { sessionKey, lastfmUsername } });
+    } else {
+      await CoreDB.insertAsync({ __s: 'lastfm_session', username, sessionKey, lastfmUsername });
+    }
+    return true;
+  } catch (err) {
+    Logger.error(err);
+    return false;
+  }
+}
+
+export async function GetLastfmSession(username: string): Promise<{ sessionKey: string; lastfmUsername: string } | null> {
+  try {
+    const doc = await CoreDB.findOneAsync<any>({ __s: 'lastfm_session', username });
+    return doc ? { sessionKey: doc.sessionKey, lastfmUsername: doc.lastfmUsername } : null;
+  } catch (err) {
+    Logger.error(err);
+    return null;
+  }
+}
+
+export async function DeleteLastfmSession(username: string) {
+  try {
+    await CoreDB.removeAsync({ __s: 'lastfm_session', username }, {});
+    return true;
+  } catch (err) {
+    Logger.error(err);
+    return false;
+  }
+}
+
+export async function SaveLastfmAutoScrobble(refid: string, enabled: boolean) {
+  try {
+    await CoreDB.updateAsync(
+      { __s: 'lastfm_auto_scrobble', refid },
+      { __s: 'lastfm_auto_scrobble', refid, enabled },
+      { upsert: true }
+    );
+    return true;
+  } catch (err) {
+    Logger.error(err);
+    return false;
+  }
+}
+
+export async function GetLastfmAutoScrobble(refid: string): Promise<boolean> {
+  try {
+    const doc = await CoreDB.findOneAsync<any>({ __s: 'lastfm_auto_scrobble', refid });
+    return doc ? doc.enabled : false;
+  } catch (err) {
+    Logger.error(err);
+    return false;
   }
 }
 

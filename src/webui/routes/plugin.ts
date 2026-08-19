@@ -117,7 +117,7 @@ pluginRouter.get(
     // Any profile sub-page whose name contains 'settings' or 'migrate' is owner-only.
     // Explicitly protected pages are also included in this list.
     const isOwnerOnlyPage = (p: string) =>
-      ['profile_tachi', 'profile_nabla', 'profile_migrate'].includes(p) ||
+      ['profile_tachi', 'profile_nabla', 'profile_migrate', 'profile_lastfm'].includes(p) ||
       p.includes('settings') || p.includes('setting') || p.includes('migrate');
     if (isOwnerOnlyPage(page) && !isAdmin && !isOwner) {
       return res.redirect(`/plugin/${req.params['plugin']}/profile?refid=${refid}`);

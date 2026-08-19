@@ -91,6 +91,7 @@ These are server-side changes in this repository that support the [forked SDVX p
 - Nabla volforce recalculation endpoint
 - Tachi export timestamp tracking and v7 score export support
 - Clear comparison fix for proper Exceed Gear ranking order (MXV < UC < PUC)
+- **Last.fm scrobbling**: optional integration to scrobble played songs to Last.fm, toggled per-profile via the WebUI (`lastfm_api_key` / `lastfm_api_secret` in `config.ini`)
 
 ### WebUI
 - Removed shutdown/process controls from navbar

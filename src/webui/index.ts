@@ -17,6 +17,7 @@ import * as iconv from 'iconv-lite';
 import { authRouter } from './routes/auth';
 import { userRouter } from './routes/user';
 import { tachiRouter } from './routes/tachi';
+import { lastfmRouter } from './routes/lastfm';
 import { profileRouter } from './routes/profile';
 import { leaderboardRouter } from './routes/leaderboard';
 import { migrationRouter } from './routes/migration';
@@ -99,6 +100,7 @@ webui.use(generalLimit);
 // --- Public Routes ---
 webui.use(authRouter);
 webui.use('/tachi', tachiRouter); // Some Tachi routes are public or handled internally
+webui.use('/lastfm', lastfmRouter); // Some Last.fm routes are public or handled internally
 webui.use(oauthRouter); // OAuth Provider endpoints
 webui.use(nauticaRouter); // SDVX Custom Charts / Drive endpoints
 webui.use(discordRouter); // Discord login / linking

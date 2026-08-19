@@ -182,6 +182,20 @@ function CoreConfig() {
     desc: 'OAuth Client Secret for Kamaitachi integration',
   });
 
+  CONFIG_MAP['core'].set('lastfm_api_key', {
+    name: 'Last.fm API Key',
+    type: 'string',
+    default: '',
+    desc: 'API Key for Last.fm scrobbling integration (create one at last.fm/api/account/create)',
+  });
+
+  CONFIG_MAP['core'].set('lastfm_api_secret', {
+    name: 'Last.fm Shared Secret',
+    type: 'string',
+    default: '',
+    desc: 'Shared Secret for Last.fm scrobbling integration',
+  });
+
   CONFIG_MAP['core'].set('discord_client_id', {
     name: 'Discord Client ID',
     type: 'string',
