@@ -279,7 +279,7 @@ export function LoadExternalPlugins() {
     const plugins = readdirSync(PLUGIN_PATH, {
       encoding: 'utf8',
       withFileTypes: true,
-    }).filter(fileName => fileName.isDirectory());
+    }).filter(fileName => fileName.isDirectory() || fileName.isSymbolicLink());
 
     const instances: { instance: any; name: string }[] = [];
 
