@@ -734,12 +734,17 @@ tachiRouter.post(
       const entry: any = {
         score: s.score,
         lamp,
-        matchType: 'inGameID',
+        matchType: 'sdvxInGameID',
         identifier: String(s.mid),
         difficulty: diff,
+        judgements: {
+          critical: (s.critical || 0) + (s.s_critical || 0),
+          near: s.near || 0,
+          miss: s.error || 0,
+        },
       };
-      if (s.timeAchieved || s.createdAt) {
-        entry.timeAchieved = s.timeAchieved || new Date(s.createdAt).getTime();
+      if (s.timeAchieved || s.updatedAt || s.createdAt) {
+        entry.timeAchieved = s.timeAchieved || (s.updatedAt ? new Date(s.updatedAt).getTime() : new Date(s.createdAt).getTime());
       }
       if (s.exscore) entry.optional = { exScore: s.exscore };
       tachiScores.push(entry);
