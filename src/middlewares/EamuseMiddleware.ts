@@ -48,6 +48,16 @@ export interface EamuseInfo {
   pcbid?: string;
 }
 
+function stripPort(host: string) {
+  if (!host) return host;
+  if (host.startsWith('[')) {
+    const end = host.indexOf(']');
+    return end >= 0 ? host.slice(1, end) : host;
+  }
+  const colonIndex = host.lastIndexOf(':');
+  return colonIndex > 0 ? host.slice(0, colonIndex) : host;
+}
+
 export const EamuseMiddleware: RequestHandler = async (req, res, next) => {
   res.set('X-Powered-By', 'Asphyxia');
 
@@ -250,7 +260,12 @@ export const EamuseRoute = (router: EamuseRootRouter): RequestHandler => {
 
     // HACK: give services host
     if (body.module == 'services' && body.method == 'get') {
-      (info as any).host = req.hostname;
+      const forwardedHost = req.headers['x-forwarded-host'] ? String(req.headers['x-forwarded-host']).split(',')[0].trim() : '';
+      const forwardedProto = req.headers['x-forwarded-proto'] ? String(req.headers['x-forwarded-proto']).split(',')[0].trim() : '';
+
+      (info as any).host = forwardedHost ? stripPort(forwardedHost) : (req.get('host') || req.hostname);
+      (info as any).protocol = forwardedProto || req.protocol;
+      (info as any).proxy = Boolean(forwardedHost || forwardedProto);
     }
 
     try {
