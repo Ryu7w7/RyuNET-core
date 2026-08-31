@@ -318,6 +318,53 @@ tachiRouter.post(
     const isOwner = await userOwnsProfile(req, refid);
     if (!isAdmin && !isOwner) return res.sendStatus(403);
 
+    if (game === 'ddr') {
+      const plugin = { identifier: 'ddr@asphyxia', core: false };
+      let saved = 0;
+      let skipped = 0;
+
+      for (const score of scores) {
+        try {
+          const matchCond: any = { collection: 'score', songId: score.songId, style: score.style, difficulty: score.difficulty };
+          const existing = await APIFindOne(plugin, refid, matchCond);
+          if (existing) {
+            const update: any = {};
+            let hasChange = false;
+            if (score.score > existing.score) { update.score = score.score; hasChange = true; }
+            if (score.clearKind > (existing.clearKind || 0)) { update.clearKind = score.clearKind; hasChange = true; }
+            if (score.rank > (existing.rank || 0)) { update.rank = score.rank; hasChange = true; }
+            if (score.exScore > (existing.exScore || 0)) { update.exScore = score.exScore; hasChange = true; }
+            if (score.maxCombo > (existing.maxCombo || 0)) { update.maxCombo = score.maxCombo; hasChange = true; }
+            if (hasChange) {
+              await APIUpdate(plugin, refid, matchCond, { $set: update });
+              saved++;
+            } else { skipped++; }
+          } else {
+            const doc: any = {
+              collection: 'score',
+              songId: score.songId,
+              style: score.style,
+              difficulty: score.difficulty,
+              clearKind: score.clearKind,
+              score: score.score,
+              rank: score.rank || 0,
+              exScore: score.exScore || 0,
+              maxCombo: score.maxCombo || 0,
+            };
+            if (score.timeAchieved) {
+              doc.createdAt = new Date(score.timeAchieved);
+              doc.updatedAt = new Date(score.timeAchieved);
+            }
+            await APIInsert(plugin, refid, doc);
+            saved++;
+          }
+        } catch (err) {
+          Logger.error(`Failed to save DDR Tachi score songId=${score.songId}: ${err}`);
+        }
+      }
+      return res.json({ success: true, saved, skipped });
+    }
+
     if (game === 'iidx' || game === 'iidx-sp' || game === 'iidx-dp') {
       const plugin = { identifier: 'iidx@asphyxia', core: false };
       let saved = 0;
@@ -501,17 +548,23 @@ tachiRouter.get(
           .on('error', reject);
       });
 
-    const result = await tachiGet(game === 'iidx' ? `/api/v1/users/me/games/iidx-sp/pbs/all` : `/api/v1/users/me/games/${game}/pbs/all`);
-    let resultDp: any = null;
-    if (game === 'iidx') {
+    // For DDR, fetch both SP and DP
+    let resultSp: any, resultDp: any = null;
+    if (game === 'ddr') {
+      resultSp = await tachiGet(`/api/v1/users/me/games/ddr-sp/pbs/all`);
+      resultDp = await tachiGet(`/api/v1/users/me/games/ddr-dp/pbs/all`);
+    } else if (game === 'iidx') {
+      resultSp = await tachiGet(`/api/v1/users/me/games/iidx-sp/pbs/all`);
       resultDp = await tachiGet(`/api/v1/users/me/games/iidx-dp/pbs/all`);
+    } else {
+      resultSp = await tachiGet(`/api/v1/users/me/games/${game}/pbs/all`);
     }
 
-    if (!result.success) return res.json({ success: false, description: result.description || 'Failed' });
+    if (!resultSp.success) return res.json({ success: false, description: resultSp.description || 'Failed' });
 
-    const pbs = result.body.pbs || [];
-    const charts = result.body.charts || [];
-    const songs = result.body.songs || [];
+    const pbs = resultSp.body.pbs || [];
+    const charts = resultSp.body.charts || [];
+    const songs = resultSp.body.songs || [];
 
     if (resultDp && resultDp.success) {
       if (resultDp.body.pbs) {
@@ -525,6 +578,19 @@ tachiRouter.get(
     for (const c of charts) chartMap[c.chartID] = c;
     const songMap: Record<number, any> = {};
     for (const s of songs) songMap[s.id] = s;
+
+    // DDR-specific mappings
+    const DDR_LAMP_TO_CLEARKIND: Record<string, number> = {
+      'FAILED': 1, 'ASSIST': 2, 'CLEAR': 3, 'LIFE4': 4,
+      'FULL COMBO': 7, 'GREAT FULL COMBO': 8, 'PERFECT FULL COMBO': 9, 'MARVELOUS FULL COMBO': 10,
+    };
+    const DDR_DIFF_TO_INT: Record<string, number> = {
+      'BEGINNER': 0, 'BASIC': 1, 'DIFFICULT': 2, 'EXPERT': 3, 'CHALLENGE': 4,
+    };
+    const DDR_GRADE_MAP: Record<string, number> = {
+      'E': 0, 'D': 1, 'D+': 2, 'C-': 3, 'C': 4, 'C+': 5, 'B-': 6, 'B': 7, 'B+': 8,
+      'A-': 9, 'A': 10, 'A+': 11, 'AA-': 12, 'AA': 13, 'AA+': 14, 'AAA': 15,
+    };
 
     const LAMP_TO_CLEAR: Record<string, number> = game === 'iidx' ? {
       'NO PLAY': 0, 'FAILED': 1, 'ASSIST CLEAR': 2, 'EASY CLEAR': 3, 'CLEAR': 4, 'HARD CLEAR': 5, 'EX HARD CLEAR': 6, 'FULL COMBO': 7,
@@ -549,6 +615,28 @@ tachiRouter.get(
       const chart = chartMap[pb.chartID];
       const song = songMap[pb.songID];
       if (!chart || !song) continue;
+
+      if (game === 'ddr') {
+        const clearKind = DDR_LAMP_TO_CLEARKIND[pb.scoreData.lamp];
+        const difficulty = DDR_DIFF_TO_INT[chart.difficulty];
+        if (clearKind === undefined || difficulty === undefined) continue;
+        scores.push({
+          songId: chart.data.inGameID,
+          style: pb._isDp ? 1 : 0,
+          difficulty,
+          clearKind,
+          score: pb.scoreData.score,
+          rank: DDR_GRADE_MAP[pb.scoreData.grade] ?? 0,
+          exScore: pb.scoreData.optional?.exScore || 0,
+          maxCombo: pb.scoreData.optional?.maxCombo || 0,
+          timeAchieved: pb.timeAchieved || null,
+          songName: song.title,
+          lamp: pb.scoreData.lamp,
+          difficultyStr: chart.difficulty,
+          playtype: pb._isDp ? 'DP' : 'SP',
+        });
+        continue;
+      }
 
       const clear = LAMP_TO_CLEAR[pb.scoreData.lamp];
       let diffStr = chart.difficulty;
@@ -805,5 +893,68 @@ tachiRouter.post(
       exported: tachiScores.length,
       body: importResult.body,
     });
+  })
+);
+
+tachiRouter.post(
+  '/import',
+  json({ limit: '10mb' }),
+  wrap(async (req, res) => {
+    const { game, playtype, scores } = req.body;
+    if (!game || !playtype || !scores || !Array.isArray(scores)) {
+      return res.status(400).json({ success: false, description: 'Missing data' });
+    }
+
+    const username = req.session.user!.username;
+    const tachiToken = await GetTachiToken(username);
+    if (!tachiToken) {
+      return res.status(400).json({ success: false, description: 'Not authorized with Tachi' });
+    }
+
+    const batchManual = JSON.stringify({
+      meta: { game, playtype, service: 'Asphyxia' },
+      scores,
+    });
+
+    const boundary = '----AsphyxiaTachi' + Date.now();
+    const bodyParts = [
+      `--${boundary}\r\n`,
+      `Content-Disposition: form-data; name="importType"\r\n\r\n`,
+      `file/batch-manual\r\n`,
+      `--${boundary}\r\n`,
+      `Content-Disposition: form-data; name="scoreData"; filename="scores.json"\r\n`,
+      `Content-Type: application/json\r\n\r\n`,
+      batchManual + '\r\n',
+      `--${boundary}--\r\n`,
+    ];
+    const postData = Buffer.from(bodyParts.join(''));
+
+    const importResult: any = await new Promise((resolve, reject) => {
+      const importReq = https.request(
+        `${TACHI_BASE_URL}/api/v1/import/file`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${tachiToken}`,
+            'Content-Type': `multipart/form-data; boundary=${boundary}`,
+            'Content-Length': postData.length,
+            'X-User-Intent': 'true',
+          },
+        },
+        (importRes: any) => {
+          let body = '';
+          importRes.on('data', (chunk: string) => (body += chunk));
+          importRes.on('end', () => {
+            try { resolve(JSON.parse(body)); }
+            catch { reject(new Error('Failed to parse Tachi import response')); }
+          });
+        }
+      );
+      importReq.on('error', reject);
+      importReq.write(postData);
+      importReq.end();
+    });
+
+    res.json(importResult);
   })
 );

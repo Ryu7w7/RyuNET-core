@@ -399,3 +399,118 @@ migrationRouter.get(
     await archive.finalize();
   })
 );
+
+// DDR Score migration
+migrationRouter.post(
+  '/migrate/ddr/import-scores',
+  json({ limit: '50mb' }),
+  wrap(async (req, res) => {
+    const { refid, scores } = req.body;
+    if (!refid || !scores || !Array.isArray(scores)) {
+      return res.status(400).json({ success: false, description: 'Missing data' });
+    }
+
+    const isAdmin = req.session.user!.admin;
+    const isOwner = await userOwnsProfile(req, refid);
+    if (!isAdmin && !isOwner) return res.sendStatus(403);
+
+    const plugin = { identifier: 'ddr@asphyxia', core: false };
+    let inserted = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const s of scores) {
+      try {
+        if (!s.collection || (s.collection !== 'score' && s.collection !== 'score3')) continue;
+
+        delete s._id;
+        delete s.__s;
+        delete s.__refid;
+        
+        // Match condition depends on collection
+        let matchCond: any = { collection: s.collection, songId: s.songId };
+        if (s.collection === 'score') {
+          matchCond.difficulty = s.difficulty;
+        } else if (s.collection === 'score3') {
+          matchCond.style = s.style;
+          matchCond.difficulty = s.difficulty;
+        }
+
+        const existing = await APIFind(plugin, refid, matchCond);
+        if (existing && existing.length > 0) {
+          const ex = existing[0];
+          const update: any = {};
+          let hasChange = false;
+
+          if (s.score > ex.score) {
+            update.score = s.score;
+            if (s.exScore !== undefined) update.exScore = s.exScore;
+            if (s.maxCombo !== undefined) update.maxCombo = s.maxCombo;
+            if (s.flareForce !== undefined) update.flareForce = s.flareForce;
+            if (s.ghostId !== undefined) update.ghostId = s.ghostId;
+            hasChange = true;
+          }
+          if (s.clearKind > ex.clearKind) {
+            update.clearKind = s.clearKind;
+            hasChange = true;
+          }
+          // Rank is lower is better (0=AAA, 1=AA+, etc), default to 0 if not present
+          if (s.rank !== undefined && ex.rank !== undefined && s.rank < ex.rank) { 
+            update.rank = s.rank;
+            hasChange = true;
+          }
+
+          if (hasChange) {
+            await APIUpdate(plugin, refid, matchCond, { $set: update });
+            updated++;
+          } else {
+            skipped++;
+          }
+        } else {
+          // New record
+          await APIInsert(plugin, refid, {
+            ...s,
+            _id: undefined,
+            __refid: refid,
+          });
+          inserted++;
+        }
+      } catch (err) {
+        Logger.error(`[DDR Migrate] Error processing songId ${s.songId}: ${err}`);
+      }
+    }
+
+    res.json({ success: true, inserted, updated, skipped });
+  })
+);
+
+migrationRouter.get(
+  '/migrate/ddr/export-savedata',
+  wrap(async (req, res) => {
+    const refid = req.query.refid as string;
+    if (!refid) return res.status(400).json({ success: false });
+
+    const isAdmin = req.session.user!.admin;
+    const isOwner = await userOwnsProfile(req, refid);
+    if (!isAdmin && !isOwner) return res.sendStatus(403);
+
+    const profile = await FindProfile(refid);
+    if (!profile) return res.status(404).json({ success: false });
+    const cards = await FindCardsByRefid(refid);
+
+    const coreLines = [nedbSerialize(profile), ...(cards || []).map((c: any) => nedbSerialize(c))].join('\n') + '\n';
+    const pluginDocs = await APIFind({ identifier: 'ddr@asphyxia', core: true }, refid, {});
+    const ddrLines = (pluginDocs || []).map((d: any) => nedbSerialize(d)).join('\n') + '\n';
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', err => {
+      if (!res.headersSent) res.status(500).json({ success: false });
+    });
+    res.set('Content-Type', 'application/zip');
+    res.set('Content-Disposition', 'attachment; filename="ddr_savedata.zip"');
+    archive.pipe(res);
+    archive.append(coreLines, { name: 'savedata/core.db' });
+    archive.append(ddrLines, { name: 'savedata/ddr@asphyxia.db' });
+    await archive.finalize();
+  })
+);
