@@ -39,12 +39,16 @@ block content
                   a(href=`/leaderboard?game=sdvx${sq_val}${co_val}`) SDVX
                 li(class=game=='iidx' ? 'is-active' : '')
                   a(href=`/leaderboard?game=iidx&style=sp${sq_val}${co_val}`) IIDX
+                li(class=game=='ddr' ? 'is-active' : '')
+                  a(href=`/leaderboard?game=ddr&style=sp${sq_val}${co_val}`) DDR
+                li(class=game=='popn' ? 'is-active' : '')
+                  a(href=`/leaderboard?game=popn&style=class${sq_val}${co_val}`) POP'N
         .level-right
           .level-item
             form(method="GET" action="/leaderboard" style="margin: 0;")
               input(type="hidden" name="game" value=game)
-              if game == 'iidx'
-                - var s_val = (typeof style === 'string' && style) ? style : 'sp'
+              if game == 'iidx' || game == 'ddr' || game == 'popn'
+                - var s_val = (typeof style === 'string' && style) ? style : (game === 'popn' ? 'class' : 'sp')
                 input(type="hidden" name="style" value=s_val)
               .field.has-addons.m-0
                 .control
@@ -62,12 +66,13 @@ block content
                           i.mdi.mdi-chevron-down
                     .dropdown-menu#dropdown-menu(role="menu")
                       .dropdown-content(style="max-height: 300px; overflow-y: auto; background: #1a1f2c; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 16px rgba(0,0,0,0.5);")
-                        a.dropdown-item(href=`/leaderboard?game=${game}${game === 'iidx' ? '&style=' + (style || 'sp') : ''}${sq_val}&country=all` style="color: var(--text);")
+                        - const styleParam = (game === 'sdvx') ? '' : `&style=${style || (game === 'popn' ? 'class' : 'sp')}`
+                        a.dropdown-item(href=`/leaderboard?game=${game}${styleParam}${sq_val}&country=all` style="color: var(--text);")
                           span.icon 🌎
                           |  All Countries
                         each co in availableCountries
                           if co.code !== 'xx'
-                            a.dropdown-item(href=`/leaderboard?game=${game}${game === 'iidx' ? '&style=' + (style || 'sp') : ''}${sq_val}&country=${co.code}` style="color: var(--text);")
+                            a.dropdown-item(href=`/leaderboard?game=${game}${styleParam}${sq_val}&country=${co.code}` style="color: var(--text);")
                               span.icon
                                 span.fi(class=`fi-${co.code}`)
                               |  #{co.code.toUpperCase()}
@@ -86,6 +91,24 @@ block content
               a(href=`/leaderboard?game=iidx&style=sp${sq_val}${cq_val}`) SP
             li(class=s=='dp' ? 'is-active' : '')
               a(href=`/leaderboard?game=iidx&style=dp${sq_val}${cq_val}`) DP
+      else if game == 'ddr'
+        - const s = (typeof style === 'string' && style) ? style : 'sp'
+        - const cq_val = (selectedCountry && selectedCountry !== 'all') ? `&country=${selectedCountry}` : ''
+        .tabs.is-small.is-toggle.is-toggle-rounded.mt-2
+          ul
+            li(class=s=='sp' ? 'is-active' : '')
+              a(href=`/leaderboard?game=ddr&style=sp${sq_val}${cq_val}`) SINGLE (SP)
+            li(class=s=='dp' ? 'is-active' : '')
+              a(href=`/leaderboard?game=ddr&style=dp${sq_val}${cq_val}`) DOUBLE (DP)
+      else if game == 'popn'
+        - const s = (typeof style === 'string' && style) ? style : 'class'
+        - const cq_val = (selectedCountry && selectedCountry !== 'all') ? `&country=${selectedCountry}` : ''
+        .tabs.is-small.is-toggle.is-toggle-rounded.mt-2
+          ul
+            li(class=s=='class' ? 'is-active' : '')
+              a(href=`/leaderboard?game=popn&style=class${sq_val}${cq_val}`) POP'N CLASS
+            li(class=s=='score' ? 'is-active' : '')
+              a(href=`/leaderboard?game=popn&style=score${sq_val}${cq_val}`) TOTAL SCORE
     if game == 'sdvx'
       .box
         h3.title.is-5 SOUND VOLTEX — VOLFORCE RANKING
@@ -119,7 +142,48 @@ block content
               b Filtered Ranking: 
               | ##{myLocalRank} of #{totalPlayers}
             br
-            | EX Score: #{myRow.value} — Entries: #{myRow.extraA} — Mode: #{String(style).toUpperCase()}
+            | EX Score: #{Number(myRow.value).toLocaleString()} — Entries: #{myRow.extraA} — Mode: #{String(style).toUpperCase()}
+        else
+          .notification
+            | Not yet.
+    else if game == 'ddr'
+      .box
+        if String(style).toLowerCase() == 'dp'
+          h3.title.is-5 DanceDanceRevolution — DP EX SCORE RANKING
+        else
+          h3.title.is-5 DanceDanceRevolution — SP EX SCORE RANKING
+        if myRank && myRow
+          .notification.is-success
+            b Global Ranking:
+            |  ##{myRank} of #{globalTotalPlayers || totalPlayers}
+            if myLocalRank && myLocalRank !== myRank
+              br
+              b Filtered Ranking: 
+              | ##{myLocalRank} of #{totalPlayers}
+            br
+            | EX Score: #{Number(myRow.value).toLocaleString()} — Charts: #{myRow.extraA} — Mode: #{String(style).toUpperCase()}
+        else
+          .notification
+            | Not yet.
+    else if game == 'popn'
+      .box
+        if String(style).toLowerCase() == 'score'
+          h3.title.is-5 pop'n music — TOTAL SCORE RANKING
+        else
+          h3.title.is-5 pop'n music — POP'N CLASS RANKING
+        if myRank && myRow
+          .notification.is-success
+            b Global Ranking:
+            |  ##{myRank} of #{globalTotalPlayers || totalPlayers}
+            if myLocalRank && myLocalRank !== myRank
+              br
+              b Filtered Ranking: 
+              | ##{myLocalRank} of #{totalPlayers}
+            br
+            if String(style).toLowerCase() == 'score'
+              | Total Score: #{Number(myRow.value).toLocaleString()} — Charts: #{myRow.extraA} — Clears: #{myRow.extraB}
+            else
+              | POP'N CLASS: #{Number(myRow.value).toFixed(2)} — Charts: #{myRow.extraA} — Clears: #{myRow.extraB}
         else
           .notification
             | Not yet.
@@ -131,10 +195,11 @@ block content
         - const currentPage = page || 1
         - const pp = perPage || 20
         - const tp = totalPages || 1
-        - const s2 = (typeof style === 'string' && style) ? style : 'sp'
+        - const defStyle = (game === 'popn' ? 'class' : 'sp')
+        - const s2 = (typeof style === 'string' && style) ? style : defStyle
         - const sqStr = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''
         - const coStr = (selectedCountry && selectedCountry !== 'all') ? `&country=${selectedCountry}` : ''
-        - const baseQs = ((game === 'sdvx') ? 'game=sdvx' : `game=iidx&style=${s2}`) + sqStr + coStr
+        - const baseQs = ((game === 'sdvx') ? 'game=sdvx' : `game=${game}&style=${s2}`) + sqStr + coStr
         
         - const maxPagesToShow = 5;
         - let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
@@ -187,6 +252,17 @@ block content
                   th(style="width: 15%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 0; text-align: center; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") EX Score
                   th(style="width: 15%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 0; text-align: center; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") Entries
                   th(style="width: 20%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 1.5rem; text-align: left; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") Mode
+                else if game == 'ddr'
+                  th(style="width: 15%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 0; text-align: center; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") EX Score
+                  th(style="width: 15%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 0; text-align: center; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") Charts
+                  th(style="width: 20%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 1.5rem; text-align: left; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") Mode
+                else if game == 'popn'
+                  if String(style).toLowerCase() == 'score'
+                    th(style="width: 20%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 0; text-align: center; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") Total Score
+                  else
+                    th(style="width: 20%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 0; text-align: center; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") POP'N CLASS
+                  th(style="width: 15%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 0; text-align: center; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") Charts
+                  th(style="width: 15%; position: sticky; top: 0; background: rgba(12,16,28,0.95); backdrop-filter: blur(8px); z-index: 10; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--muted); padding: 1.2rem 0; text-align: center; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;") Clears
             tbody
               each r, i in rows
                 - const isFiltered = (selectedCountry && selectedCountry !== 'all') || searchQuery
@@ -232,8 +308,27 @@ block content
 
                   else if game == 'iidx'
                     td(style="vertical-align: middle; padding: 1rem 0; text-align: center;") 
-                      span.tag.is-info.is-light(style="font-family: monospace; font-size: 1.1rem; font-weight: bold;") #{r.value}
+                      span.tag.is-info.is-light(style="font-family: monospace; font-size: 1.1rem; font-weight: bold;") #{Number(r.value).toLocaleString()}
                     td(style="vertical-align: middle; padding: 1rem 0; text-align: center;")
                       span(style="font-weight: 600; font-size: 1.1rem;") #{r.extraA}
                     td(style="vertical-align: middle; padding: 1rem 1.5rem; text-align: left;")
                       span.tag.is-dark.is-medium(style="font-weight: bold; letter-spacing: 1px;") #{String(style).toUpperCase()}
+
+                  else if game == 'ddr'
+                    td(style="vertical-align: middle; padding: 1rem 0; text-align: center;") 
+                      span.tag.is-warning.is-light(style="font-family: monospace; font-size: 1.1rem; font-weight: bold;") #{Number(r.value).toLocaleString()}
+                    td(style="vertical-align: middle; padding: 1rem 0; text-align: center;")
+                      span(style="font-weight: 600; font-size: 1.1rem;") #{r.extraA}
+                    td(style="vertical-align: middle; padding: 1rem 1.5rem; text-align: left;")
+                      span.tag.is-dark.is-medium(style="font-weight: bold; letter-spacing: 1px;") #{String(style).toUpperCase()}
+
+                  else if game == 'popn'
+                    td(style="vertical-align: middle; padding: 1rem 0; text-align: center;") 
+                      if String(style).toLowerCase() == 'score'
+                        span.tag.is-info.is-light(style="font-family: monospace; font-size: 1.1rem; font-weight: bold;") #{Number(r.value).toLocaleString()}
+                      else
+                        span.tag.is-primary.is-light(style="font-family: monospace; font-size: 1.1rem; font-weight: bold;") #{Number(r.value).toFixed(2)}
+                    td(style="vertical-align: middle; padding: 1rem 0; text-align: center;")
+                      span(style="font-weight: 600; font-size: 1.1rem;") #{r.extraA}
+                    td(style="vertical-align: middle; padding: 1rem 0; text-align: center;")
+                      span.tag.is-success.is-light(style="font-family: monospace; font-size: 1.05rem; font-weight: bold;") #{r.extraB}

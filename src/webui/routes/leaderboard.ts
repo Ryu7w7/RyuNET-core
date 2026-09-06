@@ -1,14 +1,12 @@
 import { Router } from 'express';
 import { groupBy } from 'lodash';
 import {
-  APIFind,
-  FindProfile,
   FindCardsByRefid,
   FindUserByCardNumber,
   FindCard,
   GetProfiles,
+  GET_DB,
 } from '../../utils/EamuseIO';
-import { ROOT_CONTAINER } from '../../eamuse/index';
 import { wrap } from '../shared/middleware';
 import { data } from '../shared/helpers';
 
@@ -51,6 +49,40 @@ function getGameNickname(docs: any[]) {
   return null;
 }
 
+function getDDRNickname(docs: any[]) {
+  for (const d of docs) {
+    if (d?.collection === 'profile3' && typeof d?.dancerName === 'string' && d.dancerName.trim().length > 0) {
+      return d.dancerName.trim();
+    }
+  }
+  for (const d of docs) {
+    if (d?.collection === 'profile') {
+      const str = d?.usergamedata?.COMMON?.strdata;
+      if (typeof str === 'string') {
+        const parts = str.split(',');
+        if (parts[25] && parts[25].trim().length > 0 && parts[25].trim() !== 'undefined') {
+          return parts[25].trim();
+        }
+      }
+    }
+  }
+  return null;
+}
+
+async function resolveCountryCode(refid: string, coreProfile: any): Promise<string> {
+  if (coreProfile?.countryCode) {
+    return coreProfile.countryCode.toLowerCase();
+  }
+  const cards = await FindCardsByRefid(refid);
+  for (const c of cards || []) {
+    const u = await FindUserByCardNumber(c.cid);
+    if (u?.countryCode) {
+      return u.countryCode.toLowerCase();
+    }
+  }
+  return 'xx';
+}
+
 function vfToClassNum(vf: number) {
   if (vf >= 20.0) return 10;
   if (vf >= 19.0) return 9;
@@ -90,10 +122,13 @@ export async function getOrBuildLeaderboardCache(game: string, style: string) {
   const profileMap = new Map(allProfiles.map((p: any) => [String(p.__refid), p]));
 
   if (game === 'sdvx') {
-    const plugin = ROOT_CONTAINER.getPluginByID('sdvx@asphyxia');
-    if (!plugin) return null;
+    const db = await GET_DB('sdvx@asphyxia');
+    if (!db) {
+      setCachedResult(cacheKey, []);
+      return [];
+    }
     
-    const docs = await APIFind({ identifier: plugin.Identifier, core: true }, null, {});
+    const docs = await db.findAsync<any>({ __s: 'plugins_profile' }, {}).sort({ createdAt: 1 }).execAsync();
     const byRef = groupBy(docs, '__refid');
     const sdvxRows: any[] = [];
     const globalFirstPlaces = new Map<string, { score: number, refid: string }>();
@@ -153,12 +188,15 @@ export async function getOrBuildLeaderboardCache(game: string, style: string) {
     setCachedResult('sdvx_firstPlaces', firstPlacesArr);
   } 
   else if (game === 'iidx') {
-    const plugin = ROOT_CONTAINER.getPluginByID('iidx@asphyxia');
-    if (!plugin) return null;
+    const db = await GET_DB('iidx@asphyxia');
+    if (!db) {
+      setCachedResult(cacheKey, []);
+      return [];
+    }
     
     const isSP = style === 'sp';
     const isDP = style === 'dp';
-    const docs = await APIFind({ identifier: plugin.Identifier, core: true }, null, {});
+    const docs = await db.findAsync<any>({ __s: 'plugins_profile' }, {}).sort({ createdAt: 1 }).execAsync();
     const byRef = groupBy(docs, '__refid');
     const iidxRows: any[] = [];
     const globalFirstPlaces = new Map<string, { score: number, refid: string }>();
@@ -213,6 +251,205 @@ export async function getOrBuildLeaderboardCache(game: string, style: string) {
     const firstPlacesArr = Array.from(globalFirstPlaces.entries()).map(([k, v]) => ({ key: k, score: v.score, refid: v.refid }));
     setCachedResult('iidx_firstPlaces', firstPlacesArr);
   }
+  else if (game === 'ddr') {
+    const db = await GET_DB('ddr@asphyxia');
+    if (!db) {
+      setCachedResult(cacheKey, []);
+      return [];
+    }
+
+    const isSP = style !== 'dp'; // default is sp
+    const docs = await db.findAsync<any>({ __s: 'plugins_profile' }, {}).sort({ createdAt: 1 }).execAsync();
+    const byRef = groupBy(docs, '__refid');
+    const ddrRows: any[] = [];
+    const globalFirstPlaces = new Map<string, { score: number, refid: string }>();
+
+    for (const refid in byRef) {
+      const coreProfile: any = profileMap.get(refid);
+      if (coreProfile?.isPrivate) continue;
+
+      const bestByChart = new Map<string, { exScore: number, score: number }>();
+      for (const d of byRef[refid]) {
+        if (d.collection === 'score3') {
+          const docStyle = Number(d.style);
+          if ((isSP && docStyle !== 0) || (!isSP && docStyle !== 1)) continue;
+          const ex = Number(d.exScore) || 0;
+          const sc = Number(d.score) || 0;
+          if (d.songId != null && d.difficulty != null) {
+            const key = `${d.songId}:${d.difficulty}`;
+            const prev = bestByChart.get(key) || { exScore: 0, score: 0 };
+            bestByChart.set(key, {
+              exScore: Math.max(prev.exScore, ex),
+              score: Math.max(prev.score, sc),
+            });
+            if (ex > 0) {
+              const gKey = `${d.songId}:${d.style}:${d.difficulty}`;
+              const existing = globalFirstPlaces.get(gKey);
+              if (!existing || ex > existing.score) {
+                globalFirstPlaces.set(gKey, { score: ex, refid });
+              }
+            }
+          }
+        } else if (d.collection === 'score') {
+          let docStyle = d.style;
+          let diff = Number(d.difficulty);
+          if (docStyle === undefined) {
+            docStyle = diff < 5 ? 0 : 1;
+            if (diff >= 5) diff -= 5;
+          } else {
+            docStyle = Number(docStyle);
+          }
+          if ((isSP && docStyle !== 0) || (!isSP && docStyle !== 1)) continue;
+          const ex = Number(d.exScore) || 0;
+          const sc = Number(d.score) || 0;
+          if (d.songId != null && diff != null) {
+            const key = `${d.songId}:${diff}`;
+            const prev = bestByChart.get(key) || { exScore: 0, score: 0 };
+            bestByChart.set(key, {
+              exScore: Math.max(prev.exScore, ex),
+              score: Math.max(prev.score, sc),
+            });
+            if (ex > 0) {
+              const gKey = `${d.songId}:${docStyle}:${diff}`;
+              const existing = globalFirstPlaces.get(gKey);
+              if (!existing || ex > existing.score) {
+                globalFirstPlaces.set(gKey, { score: ex, refid });
+              }
+            }
+          }
+        }
+      }
+
+      if (bestByChart.size === 0) continue;
+
+      const totalEX = Array.from(bestByChart.values()).reduce((sum, v) => sum + v.exScore, 0);
+      const totalScore = Array.from(bestByChart.values()).reduce((sum, v) => sum + v.score, 0);
+      if (totalEX <= 0 && totalScore <= 0) continue;
+
+      const rankValue = totalEX > 0 ? totalEX : totalScore;
+      const nickname = getDDRNickname(byRef[refid]);
+      const name = nickname ? sanitizeNickname(nickname) : (coreProfile?.name || '(no name)');
+      const countryCode = await resolveCountryCode(refid, coreProfile);
+
+      ddrRows.push({
+        refid,
+        name,
+        value: rankValue,
+        extraA: bestByChart.size,
+        mode: isSP ? 'SP' : 'DP',
+        countryCode,
+        avatarUrl: (coreProfile as any)?.avatarUrl || null,
+      });
+    }
+
+    ddrRows.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    ddrRows.forEach((r, idx) => r.globalRank = idx + 1);
+    rows = ddrRows;
+
+    const firstPlacesArr = Array.from(globalFirstPlaces.entries()).map(([k, v]) => ({ key: k, score: v.score, refid: v.refid }));
+    setCachedResult('ddr_firstPlaces', firstPlacesArr);
+  }
+  else if (game === 'popn') {
+    const db = await GET_DB('popn@asphyxia');
+    if (!db) {
+      setCachedResult(cacheKey, []);
+      return [];
+    }
+
+    const isScoreMode = style === 'score';
+    const docs = await db.findAsync<any>({ __s: 'plugins_profile' }, {}).sort({ createdAt: 1 }).execAsync();
+    const byRef = groupBy(docs, '__refid');
+    const popnRows: any[] = [];
+    const globalFirstPlaces = new Map<string, { score: number, refid: string }>();
+
+    for (const refid in byRef) {
+      const coreProfile: any = profileMap.get(refid);
+      if (coreProfile?.isPrivate) continue;
+
+      let maxPowerPoint = 0;
+      let popnTier = 0;
+      const bestScores = new Map<string, { score: number, clear_type: number }>();
+
+      for (const doc of byRef[refid]) {
+        if (doc.collection === 'params' && doc.params) {
+          const pp = Number(doc.params.power_point) || 0;
+          if (pp > maxPowerPoint) {
+            maxPowerPoint = pp;
+            popnTier = Number(doc.params.popn_class) || 0;
+          }
+        }
+        if (doc.collection === 'scores' && doc.scores && typeof doc.scores === 'object') {
+          for (const [key, val] of Object.entries(doc.scores as Record<string, any>)) {
+            if (val && typeof val.score === 'number' && val.score > 0) {
+              const prev = bestScores.get(key) || { score: 0, clear_type: 0 };
+              const newScore = Math.max(prev.score, val.score);
+              const newClear = Math.max(prev.clear_type, Number(val.clear_type) || 0);
+              bestScores.set(key, { score: newScore, clear_type: newClear });
+
+              const existing = globalFirstPlaces.get(key);
+              if (!existing || newScore > existing.score) {
+                globalFirstPlaces.set(key, { score: newScore, refid });
+              }
+            }
+          }
+        }
+      }
+
+      if (bestScores.size === 0 && maxPowerPoint === 0) continue;
+
+      const totalScore = Array.from(bestScores.values()).reduce((sum, v) => sum + v.score, 0);
+      const totalClears = Array.from(bestScores.values()).filter(v => v.clear_type >= 200).length;
+      const popnClassVal = maxPowerPoint / 100;
+
+      const nickname = getGameNickname(byRef[refid]);
+      const name = nickname ? sanitizeNickname(nickname) : (coreProfile?.name || '(no name)');
+      const countryCode = await resolveCountryCode(refid, coreProfile);
+
+      if (isScoreMode) {
+        if (totalScore <= 0) continue;
+        popnRows.push({
+          refid,
+          name,
+          value: totalScore,
+          extraA: bestScores.size,
+          extraB: totalClears,
+          popnClass: popnClassVal,
+          popnTier,
+          countryCode,
+          avatarUrl: (coreProfile as any)?.avatarUrl || null,
+        });
+      } else {
+        if (popnClassVal <= 0 && totalScore <= 0) continue;
+        popnRows.push({
+          refid,
+          name,
+          value: popnClassVal,
+          totalScore,
+          extraA: bestScores.size,
+          extraB: totalClears,
+          popnClass: popnClassVal,
+          popnTier,
+          countryCode,
+          avatarUrl: (coreProfile as any)?.avatarUrl || null,
+        });
+      }
+    }
+
+    if (isScoreMode) {
+      popnRows.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    } else {
+      popnRows.sort((a, b) => (b.value ?? 0) - (a.value ?? 0) || ((b.totalScore ?? 0) - (a.totalScore ?? 0)));
+    }
+
+    popnRows.forEach((r, idx) => r.globalRank = idx + 1);
+    rows = popnRows;
+
+    const firstPlacesArr = Array.from(globalFirstPlaces.entries()).map(([k, v]) => ({ key: k, score: v.score, refid: v.refid }));
+    setCachedResult('popn_firstPlaces', firstPlacesArr);
+  }
+  else {
+    return null;
+  }
 
   if (rows) setCachedResult(cacheKey, rows);
   return rows;
@@ -220,8 +457,10 @@ export async function getOrBuildLeaderboardCache(game: string, style: string) {
 
 // --- Route Handler ---
 leaderboardRouter.get('/leaderboard', wrap(async (req, res, next) => {
-  const game = String(req.query.game || 'sdvx').toLowerCase();
-  const style = String(req.query.style || 'sp').toLowerCase();
+  let game = String(req.query.game || 'sdvx').toLowerCase().trim();
+  if (game === "pop'n") game = 'popn';
+  const defaultStyle = game === 'popn' ? 'class' : 'sp';
+  const style = String(req.query.style || defaultStyle).toLowerCase().trim();
   
   const perPage = 20;
   const page = clampInt(req.query.page, 1, 1, 999999);
@@ -230,7 +469,9 @@ leaderboardRouter.get('/leaderboard', wrap(async (req, res, next) => {
 
   let rows = await getOrBuildLeaderboardCache(game, style);
 
-  if (!rows) return next();
+  if (rows === null) {
+    return res.redirect('/leaderboard?game=sdvx');
+  }
 
   // Extract available unique countries from all rows
   function getFlagEmoji(countryCode: string) {
