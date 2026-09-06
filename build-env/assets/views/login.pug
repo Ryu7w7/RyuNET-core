@@ -47,8 +47,16 @@ html
                   i.mdi.mdi-discord
                 span Log in with Discord
           .has-text-centered
-            p.is-size-7.has-text-grey Don't have an account?
-              | 
-              a(href="/signup") Sign up
-            p.is-size-7.has-text-grey.mt-2
-              a(href="https://discord.gg/R6xUSKSykQ" target="_blank") Join our Discord community
+            p.is-size-7.has-text-grey
+              | Already have a game profile but no WebUI account?&nbsp;
+              a(href="/signup") Sign up here
+            if config.discord_client_id
+              p.is-size-7.has-text-grey.mt-2
+                | New and don't have a game profile yet?&nbsp;
+                a(href="/auth/discord?action=register" style="color: #5865F2;") Create an account with Discord
+            else
+              p.is-size-7.has-text-grey.mt-2
+                a(href="https://discord.gg/R6xUSKSykQ" target="_blank")
+                  span.icon.is-small
+                    i.mdi.mdi-discord
+                  span  Join our Discord community
