@@ -21,6 +21,7 @@ import path from 'path';
 import fs from 'fs';
 import { sdvxJacketUrl, prewarmJacketCache } from '../../utils/sdvx_jacket_resolver';
 import rateLimit from 'express-rate-limit';
+import { CONFIG } from '../../utils/ArgConfig';
 
 // ---------------------------------------------------------------------------
 // Module-level song DB cache — loaded once, never on each request
@@ -33,39 +34,152 @@ let _iidxSongs: any = null;
 let _sdvxSongMap: Map<string, any> = new Map();
 let _sdvxCustomSongMap: Map<string, any> = new Map();
 let _iidxSongMap: Map<string, any> = new Map();
+let _ddrSongMap: Map<string, { title: string; artist?: string; diffLv?: number[]; basename?: string }> = new Map();
+let _popnSongMap: Map<string, { title: string; artist?: string; genre?: string }> = new Map();
+
+/**
+ * Helper to locate a file inside a plugin directory across different deployment environments
+ * (e.g. VPS with PLUGIN_PATH or process.env.PLUGIN_PATH, local dev workspaces with sibling folders).
+ */
+function findPluginFile(pluginFolder: string, subPath: string): string | null {
+  const candidates = [
+    process.env.PLUGIN_PATH ? path.join(process.env.PLUGIN_PATH, pluginFolder, subPath) : null,
+    process.env.ASPHYXIA_PLUGIN_PATH ? path.join(process.env.ASPHYXIA_PLUGIN_PATH, pluginFolder, subPath) : null,
+    path.join(PLUGIN_PATH, pluginFolder, subPath),
+    path.resolve(process.cwd(), 'plugins', pluginFolder, subPath),
+    path.resolve(process.cwd(), '..', 'plugins', pluginFolder, subPath),
+    path.resolve(process.cwd(), '..', 'asphyxia_plugins', pluginFolder, subPath),
+  ].filter(Boolean) as string[];
+
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+}
 
 function loadSongDBs(): void {
+  // SDVX: Base music_db.json
   try {
     if (!_sdvxSongs) {
-      _sdvxSongs = JSON.parse(fs.readFileSync(
-        path.join(PLUGIN_PATH, 'sdvx@asphyxia', 'webui', 'asset', 'json', 'music_db.json'), 'utf8'
-      ));
-      if (_sdvxSongs?.mdb?.music) {
-        for (const s of _sdvxSongs.mdb.music) {
-          _sdvxSongMap.set(String(s.id), s);
+      const sdvxMdb = findPluginFile('sdvx@asphyxia', path.join('webui', 'asset', 'json', 'music_db.json'));
+      if (sdvxMdb) {
+        _sdvxSongs = JSON.parse(fs.readFileSync(sdvxMdb, 'utf8'));
+        if (_sdvxSongs?.mdb?.music) {
+          for (const s of _sdvxSongs.mdb.music) {
+            _sdvxSongMap.set(String(s.id), s);
+          }
         }
       }
     }
   } catch (e) {}
+
+  // SDVX: Custom music_db.json
   try {
     if (!_sdvxCustomSongs) {
-      _sdvxCustomSongs = JSON.parse(fs.readFileSync(
-        path.join(PLUGIN_PATH, 'sdvx@asphyxia', 'webui', 'asset', 'json', 'custom_music_db.json'), 'utf8'
-      ));
-      if (_sdvxCustomSongs?.mdb?.music) {
-        for (const s of _sdvxCustomSongs.mdb.music) {
-          _sdvxCustomSongMap.set(String(s.id), s);
+      const sdvxCustom = findPluginFile('sdvx@asphyxia', path.join('webui', 'asset', 'json', 'custom_music_db.json'));
+      if (sdvxCustom) {
+        _sdvxCustomSongs = JSON.parse(fs.readFileSync(sdvxCustom, 'utf8'));
+        if (_sdvxCustomSongs?.mdb?.music) {
+          for (const s of _sdvxCustomSongs.mdb.music) {
+            _sdvxCustomSongMap.set(String(s.id), s);
+          }
         }
       }
     }
   } catch (e) {}
+
+  // IIDX: music_data.json
   try {
     if (!_iidxSongs) {
-      _iidxSongs = JSON.parse(fs.readFileSync(
-        path.join(PLUGIN_PATH, 'iidx@asphyxia', 'data', 'music_data.json'), 'utf8'
-      ));
-      for (const [id, val] of Object.entries(_iidxSongs as any)) {
-        _iidxSongMap.set(String(id), val);
+      const iidxData = findPluginFile('iidx@asphyxia', path.join('data', 'music_data.json'));
+      if (iidxData) {
+        _iidxSongs = JSON.parse(fs.readFileSync(iidxData, 'utf8'));
+        for (const [id, val] of Object.entries(_iidxSongs as any)) {
+          _iidxSongMap.set(String(id), val);
+        }
+      }
+    }
+  } catch (e) {}
+
+  // DDR: Load from plugin uploads (mdb_limited.xml, mdb_title.xml, and data/world.ts)
+  try {
+    if (_ddrSongMap.size === 0) {
+      const parseDdrXml = (xmlPath: string) => {
+        if (!fs.existsSync(xmlPath)) return;
+        const xml = fs.readFileSync(xmlPath, 'utf8');
+        const musicBlockRe = /<music>([\s\S]*?)<\/music>/g;
+        let mb: RegExpExecArray | null;
+        while ((mb = musicBlockRe.exec(xml)) !== null) {
+          const block = mb[1];
+          const mcodeM = block.match(/<mcode[^>]*>(\d+)<\/mcode>/);
+          const titleM = block.match(/<title>([^<]*)<\/title>/);
+          const artistM = block.match(/<artist>([^<]*)<\/artist>/);
+          const diffLvM = block.match(/<diffLv[^>]*>([^<]+)<\/diffLv>/);
+          const basenameM = block.match(/<basename[^>]*>([^<]*)<\/basename>/);
+          if (!mcodeM) continue;
+          const mcode = mcodeM[1];
+          const rawDiffs = diffLvM ? diffLvM[1].trim().split(/\s+/).map(Number) : [];
+          const hasValidDiff = rawDiffs.some(n => n > 0 && n < 254);
+          const diffLv = hasValidDiff ? rawDiffs.map(n => (isNaN(n) || n >= 254) ? 0 : n) : undefined;
+          const title = titleM ? titleM[1] : undefined;
+          const artist = artistM ? artistM[1] : undefined;
+          const basename = basenameM ? basenameM[1].trim() : undefined;
+
+          if (!_ddrSongMap.has(mcode)) {
+            _ddrSongMap.set(mcode, { title: title || `Song ${mcode}`, artist, diffLv, basename });
+          } else {
+            const cur = _ddrSongMap.get(mcode)!;
+            if (title && (!cur.title || cur.title.startsWith('Song '))) cur.title = title;
+            if (artist && !cur.artist) cur.artist = artist;
+            if (diffLv && !cur.diffLv) cur.diffLv = diffLv;
+            if (basename && !cur.basename) cur.basename = basename;
+          }
+        }
+      };
+
+      const limitedXml = findPluginFile('ddr@asphyxia', path.join('webui', 'uploads', 'mdb_limited.xml'));
+      if (limitedXml) parseDdrXml(limitedXml);
+
+      const titleXml = findPluginFile('ddr@asphyxia', path.join('webui', 'uploads', 'mdb_title.xml'));
+      if (titleXml) parseDdrXml(titleXml);
+
+      // Supplementary diffLv from data/world.ts if available in plugin
+      const worldFile = findPluginFile('ddr@asphyxia', path.join('data', 'world.ts'));
+      if (worldFile) {
+        try {
+          const content = fs.readFileSync(worldFile, 'utf8');
+          const re = /mcode:\s*(\d+)[^}]*diffLv:\s*\[([0-9,\s]+)\]/g;
+          let m: RegExpExecArray | null;
+          while ((m = re.exec(content)) !== null) {
+            const mcode = m[1];
+            const diffs = m[2].split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+            if (_ddrSongMap.has(mcode)) {
+              const cur = _ddrSongMap.get(mcode)!;
+              if (!cur.diffLv) cur.diffLv = diffs;
+            } else {
+              _ddrSongMap.set(mcode, { title: `Song ${mcode}`, diffLv: diffs });
+            }
+          }
+        } catch (e) {}
+      }
+    }
+  } catch (e) {}
+
+  // Pop'n: Load from plugin catalog/music.json
+  try {
+    if (_popnSongMap.size === 0) {
+      const popnCatalog = findPluginFile('popn@asphyxia', path.join('webui', 'asset', 'catalog', 'music.json'));
+      if (popnCatalog) {
+        try {
+          const arr = JSON.parse(fs.readFileSync(popnCatalog, 'utf8'));
+          if (Array.isArray(arr)) {
+            for (const s of arr) {
+              if (s && s.id != null) {
+                _popnSongMap.set(String(s.id), { title: s.title, artist: s.artist, genre: s.genre });
+              }
+            }
+          }
+        } catch (e) {}
       }
     }
   } catch (e) {}
@@ -166,6 +280,76 @@ function getIidxTitle(mid: number | string): string {
   const midStr = String(mid);
   const song = _iidxSongMap.get(midStr) as any;
   return song?.title || `Song ID ${mid}`;
+}
+
+export function getDdrTitle(mid: number | string): string {
+  if (mid == null) return 'Unknown';
+  const midStr = String(mid);
+  const song = _ddrSongMap.get(midStr);
+  return song?.title || `Song ${mid}`;
+}
+
+/**
+ * Returns the level number for a DDR song + difficulty + style.
+ * diffLv[0..4] = SP (BGN/BSC/DIF/EXP/CSP), diffLv[5..9] = DP (same order)
+ * diff 0=BGN,1=BSC,2=DIF,3=EXP,4=CSP  style 0=SP,1=DP
+ */
+export function getDdrLevel(mid: number | string, diff: number, style: number): number | null {
+  const song = _ddrSongMap.get(String(mid));
+  if (!song?.diffLv) return null;
+  const diffLv = song.diffLv;
+  const offset = (style === 1 ? 5 : 0) + diff;
+  if (offset < 0 || offset >= diffLv.length) return null;
+  const lv = diffLv[offset];
+  return (lv && lv > 0) ? lv : null;
+}
+
+/**
+ * Returns the URL for a DDR song's jacket image, or null if no basename or jacket dir is available.
+ */
+export function getDdrJacketUrl(mid: number | string): string | null {
+  if (mid == null) return null;
+  const song = _ddrSongMap.get(String(mid));
+  if (!song?.basename) return null;
+  // Always return the API URL — the endpoint will resolve the jacket dir at serve-time
+  return `/api/ddr/jacket/${mid}`;
+}
+
+const DDR_RANK_NAMES: Record<number, string> = {
+  0: 'AAA',
+  1: 'AA+',
+  2: 'AA',
+  3: 'AA-',
+  4: 'A+',
+  5: 'A',
+  6: 'A-',
+  7: 'B+',
+  8: 'B',
+  9: 'B-',
+  10: 'C+',
+  11: 'C',
+  12: 'C-',
+  13: 'D+',
+  14: 'D',
+  15: 'E',
+};
+
+export const formatDdrRank = (r: any): string | null => {
+  if (r == null || r === '') return null;
+  if (typeof r === 'number') return DDR_RANK_NAMES[r] ?? null;
+  const n = parseInt(String(r), 10);
+  if (!isNaN(n) && DDR_RANK_NAMES[n]) return DDR_RANK_NAMES[n];
+  return String(r);
+};
+
+export function getPopnTitle(mid: number | string): string {
+  if (mid == null) return 'Unknown';
+  const midStr = String(mid);
+  const song = _popnSongMap.get(midStr);
+  if (song?.title && song.title !== '‐' && song.title !== '-') {
+    return song.title;
+  }
+  return `Song ${mid}`;
 }
 
 const UPLOADS_DIR = path.join((process as any).pkg ? path.dirname(process.argv0) : process.cwd(), 'uploads');
@@ -270,6 +454,32 @@ profileRouter.param('refid', async (req: any, res: any, next: any, id: string) =
 });
 
 profileRouter.get(
+  '/api/ddr/jacket/:songId',
+  wrap(async (req, res) => {
+    const { songId } = req.params;
+    const song = _ddrSongMap.get(String(songId));
+    // Read ddr_jacket_dir from config.ini (via CONFIG proxy) or env fallback
+    const ddrSection = CONFIG['ddr@asphyxia'] as Record<string, string> | undefined;
+    const jacketDir: string = (ddrSection?.ddr_jacket_dir) || (process.env.DDR_JACKET_DIR ?? '');
+    if (jacketDir && song?.basename) {
+      const candidates = [
+        path.join(jacketDir, `${song.basename}_jk.png`),
+        path.join(jacketDir, `${song.basename}.png`),
+        path.join(jacketDir, `${song.basename.toLowerCase()}_jk.png`),
+        path.join(jacketDir, `${song.basename.toLowerCase()}.png`),
+      ];
+      for (const c of candidates) {
+        if (fs.existsSync(c)) {
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          return res.sendFile(path.resolve(c));
+        }
+      }
+    }
+    return res.status(404).send('Jacket not found');
+  })
+);
+
+profileRouter.get(
   '/my-profile',
   authMiddleware,
   wrap(async (req, res) => {
@@ -354,10 +564,14 @@ profileRouter.get(
       return res.redirect(301, `/profile/${accountUsername}`);
     }
 
-    let sdvxStats: any = { volforce: 0, totalScores: 0, topPlays: [], recentPlays: [], firstPlaces: [] };
-    let iidxStats: any = { spDan: 0, dpDan: 0, totalScores: 0, topPlays: [], recentPlays: [], firstPlaces: [] };
+    let sdvxStats: any = { volforce: 0, totalScores: 0, sessionPlaytime: null, sessionPlaytimeDetail: null, topPlays: [], recentPlays: [], firstPlaces: [] };
+    let iidxStats: any = { spDan: 0, dpDan: 0, totalScores: 0, sessionPlaytime: null, sessionPlaytimeDetail: null, topPlays: [], recentPlays: [], firstPlaces: [] };
+    let ddrStats: any = { totalScores: 0, sessionPlaytime: null, sessionPlaytimeDetail: null, ddrCode: null, spDan: null, dpDan: null, topPlays: [], recentPlays: [], firstPlaces: [] };
+    let popnStats: any = { totalScores: 0, sessionPlaytime: null, sessionPlaytimeDetail: null, popnClass: null, popnTier: null, topPlays: [], recentPlays: [], firstPlaces: [] };
     let sdvxRank = null;
     let iidxRank = null;
+    let ddrRank = null;
+    let popnRank = null;
 
     // Ensure DBs are loaded (no-op if already cached at module level)
     loadSongDBs();
@@ -385,6 +599,8 @@ profileRouter.get(
 
       sdvxRank = await getRanksForGame('sdvx', 'sp');
       iidxRank = await getRanksForGame('iidx', 'sp');
+      ddrRank  = await getRanksForGame('ddr',  'sp');
+      popnRank = await getRanksForGame('popn', 'class');
     } catch(e) {}
 
     const timeAgo = (date: any) => {
@@ -401,6 +617,58 @@ profileRouter.get(
       interval = Math.floor(seconds / 60);
       if (interval >= 1) return interval + " minute" + (interval === 1 ? "" : "s") + " ago";
       return Math.floor(seconds) + " seconds ago";
+    };
+
+    // -----------------------------------------------------------------------
+    // Session Playtime (Tachi-style)
+    // Groups timestamps into sessions separated by <= 2h gaps.
+    // Each session contributes (end - start) + SONG_DURATION ms.
+    // -----------------------------------------------------------------------
+    const calculateSessionPlaytime = (timestamps: number[], playCountFallback?: number): { text: string; detail: string } | null => {
+      const MAX_GAP = 2 * 60 * 60 * 1000;     // 2 hours
+      const SONG_DURATION = 2.5 * 60 * 1000;  // 2.5 minutes per song
+
+      let totalMs = 0;
+      if (timestamps && timestamps.length > 0) {
+        const sorted = [...timestamps].sort((a, b) => a - b);
+        let sessionStart = sorted[0];
+        let sessionEnd   = sorted[0];
+        for (let i = 1; i < sorted.length; i++) {
+          if (sorted[i] - sessionEnd <= MAX_GAP) {
+            sessionEnd = sorted[i];
+          } else {
+            totalMs += (sessionEnd - sessionStart) + SONG_DURATION;
+            sessionStart = sorted[i];
+            sessionEnd   = sorted[i];
+          }
+        }
+        totalMs += (sessionEnd - sessionStart) + SONG_DURATION;
+      } else if (playCountFallback && playCountFallback > 0) {
+        totalMs = playCountFallback * SONG_DURATION;
+      }
+
+      if (totalMs <= 0) return null;
+
+      const totalMinutes = Math.floor(totalMs / 60000);
+      const days    = Math.floor(totalMinutes / 1440);
+      const hours   = Math.floor((totalMinutes % 1440) / 60);
+      const minutes = totalMinutes % 60;
+      const totalHours = Math.floor(totalMinutes / 60);
+
+      let text = `${minutes}m`;
+      if (days > 0)   text = `${days}d ${hours}h`;
+      else if (hours > 0) text = `${hours}h ${minutes}m`;
+
+      let detail: string;
+      if (days > 0) {
+        detail = `${totalHours} hours (${days}d ${hours}h${minutes > 0 ? ` ${minutes}m` : ''})`;
+      } else if (totalHours > 0) {
+        detail = `${totalHours} hours${minutes > 0 ? ` ${minutes}m` : ''}`;
+      } else {
+        detail = `${minutes} minutes`;
+      }
+
+      return { text, detail };
     };
 
     try {
@@ -444,6 +712,14 @@ profileRouter.get(
                return ta - tb; // Ascending for trend
             });
             let cumVf = 0;
+            // Session Playtime for SDVX
+            const sdvxTimestamps = records
+              .map((r: any) => r.updatedAt ? new Date(r.updatedAt).getTime() : 0)
+              .filter((t: number) => t > 0);
+            const sdvxPt = calculateSessionPlaytime(sdvxTimestamps);
+            sdvxStats.sessionPlaytime = sdvxPt?.text ?? null;
+            sdvxStats.sessionPlaytimeDetail = sdvxPt?.detail ?? null;
+
             sdvxStats.trend = trendRecsSdvx.map((r: any) => {
                if (r.volforce && r.volforce > cumVf) cumVf = r.volforce;
                return cumVf;
@@ -575,6 +851,14 @@ profileRouter.get(
           }
           iidxStats.totalScores = flatScores.length;
 
+          // Session Playtime for IIDX
+          const iidxTimestamps = flatScores
+            .map((s: any) => s.updatedAt ? new Date(s.updatedAt).getTime() : 0)
+            .filter((t: number) => t > 0);
+          const iidxPt = calculateSessionPlaytime(iidxTimestamps);
+          iidxStats.sessionPlaytime = iidxPt?.text ?? null;
+          iidxStats.sessionPlaytimeDetail = iidxPt?.detail ?? null;
+
           const exScores = [...flatScores].sort((a: any, b: any) => b.ex_score - a.ex_score);
           const top50 = exScores.slice(0, 50);
 
@@ -659,6 +943,236 @@ profileRouter.get(
         }
       } catch(e) {}
 
+    // -----------------------------------------------------------------------
+    // DDR stats
+    // -----------------------------------------------------------------------
+    try {
+      const ddrDB = await GET_DB('ddr@asphyxia');
+      if (ddrDB) {
+        const profileDoc = await ddrDB.findOneAsync({ collection: 'profile3', __refid: refid })
+                        || await ddrDB.findOneAsync({ collection: 'profile', __refid: refid });
+        if (profileDoc) {
+          ddrStats.ddrCode = profileDoc.ddrCode || profileDoc.code || null;
+          ddrStats.spDan   = profileDoc.spDan   || null;
+          ddrStats.dpDan   = profileDoc.dpDan   || null;
+        }
+
+        // Scores from score3 (preferred) or score
+        let ddrScores = await ddrDB.findAsync({ collection: 'score3', __refid: refid });
+        if (!ddrScores || ddrScores.length === 0) {
+          ddrScores = await ddrDB.findAsync({ collection: 'score', __refid: refid });
+        }
+
+        if (ddrScores && ddrScores.length > 0) {
+          ddrStats.totalScores = ddrScores.length;
+
+          // Session Playtime for DDR
+          const ddrTimestamps = ddrScores
+            .map((s: any) => s.updatedAt ? new Date(s.updatedAt).getTime() : 0)
+            .filter((t: number) => t > 0);
+          const ddrPt = calculateSessionPlaytime(ddrTimestamps);
+          ddrStats.sessionPlaytime = ddrPt?.text ?? null;
+          ddrStats.sessionPlaytimeDetail = ddrPt?.detail ?? null;
+
+          const DDR_DIFF_NAMES: Record<number, string> = {
+            0: 'BEGINNER', 1: 'BASIC', 2: 'DIFFICULT', 3: 'EXPERT', 4: 'CHALLENGE'
+          };
+          const getDdrDiffName = (songId: any, d: number, style?: number) => {
+            let isDp = style === 1;
+            let diffNum = Number(d) || 0;
+            if (diffNum >= 5) {
+              isDp = true;
+              diffNum = diffNum - 4;
+            }
+            // Clamp diffNum to 0-4 for CHALLENGE
+            if (diffNum < 0) diffNum = 0;
+            if (diffNum > 4) diffNum = 4;
+            const name = DDR_DIFF_NAMES[diffNum] || `DIFF ${diffNum}`;
+            const styleStr = isDp ? 'DP' : 'SP';
+            const lv = getDdrLevel(songId, diffNum, isDp ? 1 : 0);
+            return lv ? `${styleStr} ${name} ${lv}` : `${styleStr} ${name}`;
+          };
+
+          // First places
+          try {
+            const { getCachedResult: _getCR } = require('./leaderboard');
+            const ddrFirsts = (_getCR('ddr_firstPlaces') || []) as any[];
+            const userDdrFirsts = ddrFirsts.filter((f: any) => String(f.refid) === String(refid));
+            const ddrRecsByKey = new Map<string, any>();
+            for (const s of ddrScores) {
+              const key = `${s.songId || s.mid || s.music_id}:${s.style ?? 0}:${s.difficulty ?? s.diff}`;
+              ddrRecsByKey.set(key, s);
+            }
+            ddrStats.firstPlaces = userDdrFirsts.map((f: any) => {
+              const parts = f.key.split(':');
+              const songId = parts[0];
+              const st = parts.length > 2 ? Number(parts[1]) : 0;
+              const diff = parts.length > 2 ? Number(parts[2]) : Number(parts[1]);
+              const rec = ddrRecsByKey.get(f.key) || ddrRecsByKey.get(`${songId}:${diff}`) || {};
+              return {
+                title: getDdrTitle(songId),
+                diff: getDdrDiffName(songId, diff, st),
+                score: f.score,
+                clear: f.clear ?? rec.clearKind ?? rec.clear ?? null,
+                rank: formatDdrRank(rec.rank),
+                jacketUrl: getDdrJacketUrl(songId),
+                dateStr: rec.updatedAt ? timeAgo(rec.updatedAt) : null,
+              };
+            });
+          } catch(e) {}
+
+          // Top plays by score
+          const ddrTop = [...ddrScores]
+            .sort((a: any, b: any) => (b.score || 0) - (a.score || 0))
+            .slice(0, 50);
+          ddrStats.topPlays = ddrTop.map((s: any) => {
+            const songId = s.songId || s.mid || s.music_id;
+            const st = s.style != null ? Number(s.style) : undefined;
+            const diff = Number(s.difficulty ?? s.diff ?? 0);
+            return {
+              title: getDdrTitle(songId),
+              diff:  getDdrDiffName(songId, diff, st),
+              score: s.score || 0,
+              clear: s.clearKind ?? s.clear ?? null,
+              rank:  formatDdrRank(s.rank),
+              jacketUrl: getDdrJacketUrl(songId),
+              dateStr: timeAgo(s.updatedAt),
+            };
+          });
+
+          // Recent plays
+          const ddrRecent = [...ddrScores]
+            .sort((a: any, b: any) => {
+              const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+              const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+              return tb - ta;
+            }).slice(0, 5);
+          ddrStats.recentPlays = ddrRecent.map((s: any) => {
+            const songId = s.songId || s.mid || s.music_id;
+            const st = s.style != null ? Number(s.style) : undefined;
+            const diff = Number(s.difficulty ?? s.diff ?? 0);
+            return {
+              title: getDdrTitle(songId),
+              diff:  getDdrDiffName(songId, diff, st),
+              score: s.score || 0,
+              clear: s.clearKind ?? s.clear ?? null,
+              rank:  formatDdrRank(s.rank),
+              jacketUrl: getDdrJacketUrl(songId),
+              dateStr: timeAgo(s.updatedAt),
+            };
+          });
+        }
+      }
+    } catch(e) {}
+
+    // -----------------------------------------------------------------------
+    // Pop'n Music stats
+    // -----------------------------------------------------------------------
+    try {
+      const popnDB = await GET_DB('popn@asphyxia');
+      if (popnDB) {
+        const popnProfile = await popnDB.findOneAsync({ collection: 'profile', __refid: refid })
+                         || await popnDB.findOneAsync({ collection: 'base', __refid: refid });
+        const popnParams  = await popnDB.findOneAsync({ collection: 'params', __refid: refid });
+
+        if (popnProfile || popnParams) {
+          if (popnParams) {
+            const rawClass = popnParams.popn_class ?? popnParams.rank ?? null;
+            const rawPower = popnParams.power_point ?? null;
+            popnStats.popnClass = rawClass !== null ? rawClass : null;
+            popnStats.popnTier  = rawPower !== null ? Math.floor(Number(rawPower) / 100) : null;
+          }
+        }
+
+        // Scores docs - asphyxia stores as a map-document per user
+        const popnScoreDocs = await popnDB.findAsync({ collection: 'scores', __refid: refid });
+
+        if (popnScoreDocs && popnScoreDocs.length > 0) {
+          // Flatten the scores map
+          const flatPopn: any[] = [];
+          let totalPlays = 0;
+          for (const doc of popnScoreDocs) {
+            if (!doc.scores || typeof doc.scores !== 'object') continue;
+            for (const [chartKey, val] of Object.entries(doc.scores as Record<string, any>)) {
+              const cnt = Number(val?.cnt ?? 0);
+              totalPlays += cnt;
+              flatPopn.push({
+                chartKey,
+                score:      val?.score      ?? 0,
+                clear_type: val?.clear_type ?? 0,
+                cnt,
+                updatedAt:  doc.updatedAt,
+              });
+            }
+          }
+          popnStats.totalScores = flatPopn.length;
+
+          // Session playtime — use updatedAt timestamps of the score docs,
+          // falling back to total play count estimate if no timestamps.
+          const popnTimestamps = popnScoreDocs
+            .map((d: any) => d.updatedAt ? new Date(d.updatedAt).getTime() : 0)
+            .filter((t: number) => t > 0);
+          const popnPt = calculateSessionPlaytime(popnTimestamps, totalPlays);
+          popnStats.sessionPlaytime = popnPt?.text ?? null;
+          popnStats.sessionPlaytimeDetail = popnPt?.detail ?? null;
+
+          const POPN_DIFF: Record<number, string> = { 0: 'Easy', 1: 'Normal', 2: 'Hyper', 3: 'EX' };
+          const getPopnDiff = (sheet: number) => POPN_DIFF[sheet] ?? `Sheet ${sheet}`;
+
+          // Top plays by score
+          const popnTop = [...flatPopn]
+            .sort((a: any, b: any) => (b.score || 0) - (a.score || 0))
+            .slice(0, 50);
+          popnStats.topPlays = popnTop.map((p: any) => {
+            const [mid, sheet] = (p.chartKey || ':').split(':');
+            return {
+              title: getPopnTitle(mid),
+              diff:  getPopnDiff(Number(sheet)),
+              score: p.score,
+              clear: p.clear_type,
+              dateStr: timeAgo(p.updatedAt),
+            };
+          });
+
+          // Recent plays — use doc updatedAt
+          const popnRecent = [...flatPopn]
+            .sort((a: any, b: any) => {
+              const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+              const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+              return tb - ta;
+            }).slice(0, 5);
+          popnStats.recentPlays = popnRecent.map((p: any) => {
+            const [mid, sheet] = (p.chartKey || ':').split(':');
+            return {
+              title: getPopnTitle(mid),
+              diff:  getPopnDiff(Number(sheet)),
+              score: p.score,
+              clear: p.clear_type,
+              dateStr: timeAgo(p.updatedAt),
+            };
+          });
+
+          // First Places
+          try {
+            const { getCachedResult: _getCRPopn } = require('./leaderboard');
+            const popnFirsts = (_getCRPopn('popn_firstPlaces') || []) as any[];
+            const userPopnFirsts = popnFirsts.filter((f: any) => String(f.refid) === String(refid));
+            popnStats.firstPlaces = userPopnFirsts.map((f: any) => {
+              const [mid, sheet] = (f.key || ':').split(':');
+              const rec = flatPopn.find((p: any) => p.chartKey === f.key);
+              return {
+                title: getPopnTitle(mid),
+                diff:  getPopnDiff(Number(sheet)),
+                score: f.score,
+                clear: f.clear ?? rec?.clear_type ?? null,
+                dateStr: rec?.updatedAt ? timeAgo(rec.updatedAt) : null,
+              };
+            });
+          } catch(e) {}
+        }
+      }
+    } catch(e) {}
+
     const MarkdownIt = require('markdown-it');
     const md = new MarkdownIt({ html: false, linkify: false, typographer: false });
     const bioHtml = profile.bio ? md.render(profile.bio) : '';
@@ -693,8 +1207,12 @@ profileRouter.get(
         isOwner,
         sdvxStats,
         iidxStats,
+        ddrStats,
+        popnStats,
         sdvxRank,
         iidxRank,
+        ddrRank,
+        popnRank,
         bioHtml,
         followerCount,
         isFollowing,

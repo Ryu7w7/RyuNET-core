@@ -50,7 +50,7 @@ block head
     #modal-rank[data-grade="AA"] { --rank-gradient: linear-gradient(180deg, #66aaff 0%, #2255cc 100%); --rank-shadow: rgba(30,80,200,0.6); --rank-color: rgba(30,80,200,0.2); font-size: 74px; }
     #modal-rank[data-grade="A+"] { --rank-gradient: linear-gradient(180deg, #66ffdd 0%, #00aa88 100%); --rank-shadow: rgba(0,150,100,0.5); --rank-color: rgba(0,150,100,0.2); font-size: 68px; }
     #modal-rank[data-grade="A"] { --rank-gradient: linear-gradient(180deg, #66ffdd 0%, #00aa88 100%); --rank-shadow: rgba(0,150,100,0.5); --rank-color: rgba(0,150,100,0.2); font-size: 86px; }
-    .score-stats { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+    #score-detail-modal .score-stats { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
     .score-number { font-size: 58px; font-weight: 200; letter-spacing: -2px; line-height: 1; font-variant-numeric: tabular-nums; }
     .score-meta-row { display: flex; gap: 20px; margin-top: 8px; }
     .score-meta-item { display: flex; flex-direction: column; gap: 2px; }
@@ -220,25 +220,48 @@ block head
       color: #fff;
     }
     .score-list { list-style: none; padding: 0; margin: 0; }
-    .score-card { display: flex; align-items: center; background: #2c2c2c; border-radius: 12px; padding: 10px 16px; margin-bottom: 8px; transition: background 0.2s; border: 1px solid rgba(255,255,255,0.05); }
-    .score-card:hover { background: #363636; border-color: rgba(255,255,255,0.1); }
-    .score-jacket { width: 56px; height: 56px; border-radius: 8px; margin-right: 16px; object-fit: cover; background: #111; border: 1px solid rgba(255,255,255,0.1); }
-    .score-info { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; }
+
+    .score-card { display: flex; align-items: center; background: #2c2c2c; border-radius: 12px; padding: 12px 20px; margin-bottom: 8px; transition: all 0.2s ease; border: 1px solid rgba(255,255,255,0.05); }
+    .score-card:hover { background: #363636; border-color: rgba(255,255,255,0.12); transform: translateY(-1px); }
+    .score-jacket { width: 52px; height: 52px; border-radius: 8px; margin-right: 16px; object-fit: cover; background: #111; border: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
+    .score-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; padding-right: 16px; }
     .score-title { font-weight: 600; color: #fff; font-size: 1.05rem; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .score-meta { display: flex; align-items: center; font-size: 0.8rem; color: #888; }
-    .diff-badge { padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; margin-right: 10px; background: #444; color: #fff; text-transform: uppercase; letter-spacing: 0.5px; }
-    .score-stats { display: flex; align-items: center; gap: 24px; text-align: right; margin-left: auto; }
-    .stat-col { display: flex; flex-direction: column; align-items: flex-end; min-width: 90px; }
-    .score-main-stat { font-size: 1.25rem; font-weight: bold; color: #fff; }
-    .score-main-stat.is-gold { color: #ffd700; }
-    .score-sub-stat { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
-    .score-date { font-size: 0.8rem; color: #aaa; margin-left: 24px; white-space: nowrap; width: 85px; text-align: right; }
+    .score-meta { display: flex; align-items: center; font-size: 0.8rem; color: #888; flex-wrap: wrap; gap: 6px; }
+    .diff-badge { padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; background: #444; color: #fff; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+    .score-stats { display: flex; align-items: center; justify-content: flex-end; gap: 24px; text-align: right; margin-left: auto; flex-shrink: 0; }
+    .stat-col { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-width: 90px; }
+    .score-main-stat { font-size: 1.25rem; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; line-height: 1.1; letter-spacing: 0.5px; }
+    .score-main-stat.is-gold { color: #ffd700; text-shadow: 0 0 10px rgba(255,215,0,0.25); }
+    .score-sub-stat { font-size: 0.7rem; color: #888; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
+    .score-date { font-size: 0.8rem; color: #888; white-space: nowrap; min-width: 95px; text-align: right; display: flex; align-items: center; justify-content: flex-end; }
     .show-more-container { text-align: center; margin-top: 15px; margin-bottom: 30px; }
     .show-more-btn { background: #333; border: 1px solid #444; color: #eee; padding: 8px 24px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: all 0.2s ease; letter-spacing: 1px; }
     .show-more-btn:hover { background: #444; border-color: #555; color: #fff; transform: translateY(-1px); }
     .section-title { text-align: center; margin-bottom: 1.5rem !important; position: relative; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; font-size: 1.1rem; color: #fff; border-bottom: 2px solid #333; padding-bottom: 10px; }
-    
+    /* DDR diff badge colors (game-accurate) */
+    .diff-ddr-bgn { background: #6ecfff; color: #000; }
+    .diff-ddr-bsc { background: #f5c542; color: #000; }
+    .diff-ddr-dif { background: #e05a5a; color: #fff; }
+    .diff-ddr-exp { background: #4bab4b; color: #fff; }
+    .diff-ddr-csp { background: #9955ff; color: #fff; }
+    .diff-ddr-cdp { background: #ff55cc; color: #fff; }
+    /* IIDX diff badge colors */
+    .diff-iidx-bgn { background: #6ecfff; color: #000; }
+    .diff-iidx-nrm { background: #5bbd5b; color: #fff; }
+    .diff-iidx-hyp { background: #e8a020; color: #fff; }
+    .diff-iidx-ano { background: #e05050; color: #fff; }
+    .diff-iidx-leg { background: #9955ff; color: #fff; }
+    /* Pop'n diff badge colors */
+    .diff-popn-easy  { background: #44d4ff; color: #000; }
+    .diff-popn-norm  { background: #5bd65b; color: #fff; }
+    .diff-popn-hyper { background: #e8a020; color: #fff; }
+    .diff-popn-ex    { background: #e04060; color: #fff; }
+    /* Rank letter badge */
+    .rank-letter { display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.85rem; min-width: 32px; height: 28px; border-radius: 6px; background: rgba(255,215,0,0.12); color: #ffd700; border: 1px solid rgba(255,215,0,0.3); letter-spacing: 0; padding: 0 5px; font-style: italic; }
+    /* Game icon placeholder for non-jacket games */
+    .game-icon-box { width: 52px; height: 52px; border-radius: 8px; margin-right: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
     .clear-puc { border-left: 4px solid #ffd700 !important; }
+
     .clear-uc { border-left: 4px solid #ff4081 !important; }
     .clear-exc { border-left: 4px solid #00d1b2 !important; }
     .clear-comp { border-left: 4px solid #209cee !important; }
@@ -331,7 +354,48 @@ block content
   -   if (c === 1) return 'clear-fail';
   -   return '';
   - }
+  - const getDdrClearClass = (clearVal) => {
+  -   const c = Number(clearVal);
+  -   if (c >= 4) return 'clear-fc';
+  -   if (c === 3) return 'clear-comp';
+  -   if (c === 2) return 'clear-easy';
+  -   if (c === 1) return 'clear-fail';
+  -   return '';
+  - }
+  - const getPopnClearClass = (clearVal) => {
+  -   const c = Number(clearVal);
+  -   if (c >= 3) return 'clear-fc';
+  -   if (c === 2) return 'clear-comp';
+  -   if (c === 1) return 'clear-fail';
+  -   return '';
+  - }
+  - const getDdrDiffClass = (diffStr) => {
+  -   const d = (diffStr || '').toUpperCase();
+  -   if (d.includes('BEGINNER')) return 'diff-ddr-bgn';
+  -   if (d.includes('CHALLENGE')) return d.includes('DP') ? 'diff-ddr-cdp' : 'diff-ddr-csp';
+  -   if (d.includes('EXPERT'))    return 'diff-ddr-exp';
+  -   if (d.includes('DIFFICULT')) return 'diff-ddr-dif';
+  -   if (d.includes('BASIC'))     return 'diff-ddr-bsc';
+  -   return '';
+  - }
+  - const getIidxDiffClass = (diffStr) => {
+  -   const d = (diffStr || '').toUpperCase();
+  -   if (d.includes('BGN')) return 'diff-iidx-bgn';
+  -   if (d.includes('LEG') || d.includes('ANO')) return d.includes('ANO') ? 'diff-iidx-ano' : 'diff-iidx-leg';
+  -   if (d.includes('HYP')) return 'diff-iidx-hyp';
+  -   if (d.includes('NRM')) return 'diff-iidx-nrm';
+  -   return '';
+  - }
+  - const getPopnDiffClass = (diffStr) => {
+  -   const d = (diffStr || '').toLowerCase();
+  -   if (d.includes('ex'))    return 'diff-popn-ex';
+  -   if (d.includes('hyper')) return 'diff-popn-hyper';
+  -   if (d.includes('normal') || d.includes('norm')) return 'diff-popn-norm';
+  -   if (d.includes('easy'))  return 'diff-popn-easy';
+  -   return '';
+  - }
   section.section.is-main-section(style="max-width: 1200px; margin: 0 auto;")
+
     .profile-header
       .profile-banner
         if isAdmin || isOwner
@@ -542,6 +606,16 @@ block content
             span.icon.is-small
               i.mdi.mdi-record-circle-outline
             span beatmania IIDX
+        li#tab-ddr
+          a(onclick="switchTab('ddr')")
+            span.icon.is-small
+              i.mdi.mdi-arrow-up-bold-box-outline
+            span DDR
+        li#tab-popn
+          a(onclick="switchTab('popn')")
+            span.icon.is-small
+              i.mdi.mdi-music-note-eighth
+            span pop'n music
 
     .pane-container
       #pane-sdvx.mt-5
@@ -574,6 +648,10 @@ block content
             .stat-item(style="position: relative; z-index: 1;")
               .stat-label Volforce
               .stat-val #{Number(sdvxStats.volforce / 1000).toFixed(3)}
+            if sdvxStats.sessionPlaytime
+              .stat-item(style="position: relative; z-index: 1;")
+                .stat-label Session Playtime
+                .stat-val(title=sdvxStats.sessionPlaytimeDetail style="cursor: help;") #{sdvxStats.sessionPlaytime}
               
           if sdvxStats.recentPlays && sdvxStats.recentPlays.length > 0
             h3.section-title Recent Plays
@@ -679,6 +757,10 @@ block content
             .stat-item(style="position: relative; z-index: 1;")
               .stat-label DP Dan
               .stat-val #{iidxStats.dpDan}
+            if iidxStats.sessionPlaytime
+              .stat-item(style="position: relative; z-index: 1;")
+                .stat-label Session Playtime
+                .stat-val(title=iidxStats.sessionPlaytimeDetail style="cursor: help;") #{iidxStats.sessionPlaytime}
               
           if iidxStats.recentPlays && iidxStats.recentPlays.length > 0
             h3.section-title 🕒 Recent Plays
@@ -699,10 +781,12 @@ block content
             ul.score-list#iidx-first-places
               each play, index in iidxStats.firstPlaces
                 li.score-card(style=(index >= 5 ? "display: none;" : "") class=(play.clear ? getIidxClearClass(play.clear) : ''))
+                  .game-icon-box(style="color: #00d1b2;")
+                    i.mdi.mdi-record-circle-outline
                   .score-info
                     .score-title #{play.title}
                     .score-meta
-                      span.diff-badge #{play.diff}
+                      span.diff-badge(class=getIidxDiffClass(play.diff)) #{play.diff}
                   .score-stats
                     .stat-col
                       .score-main-stat #{play.score}
@@ -721,10 +805,12 @@ block content
             ul.score-list#iidx-top-plays
               each play, index in iidxStats.topPlays
                 li.score-card(style=(index >= 5 ? "display: none;" : "") class=(play.clear ? getIidxClearClass(play.clear) : ''))
+                  .game-icon-box(style="color: #00d1b2;")
+                    i.mdi.mdi-record-circle-outline
                   .score-info
                     .score-title #{play.title}
                     .score-meta
-                      span.diff-badge #{play.diff}
+                      span.diff-badge(class=getIidxDiffClass(play.diff)) #{play.diff}
                   .score-stats
                     .stat-col
                       .score-main-stat.is-gold #{play.score}
@@ -740,10 +826,213 @@ block content
           .notification.is-dark.has-text-centered.mt-4
             span.icon.is-large: i.mdi.mdi-record-circle-outline.mdi-36px
             p No IIDX data available yet.
-          
 
+      //-  ── DDR PANE ──────────────────────────────────────────────────────
+      #pane-ddr.mt-5(style="display: none;")
+        if ddrStats && ddrStats.totalScores > 0
+          .stats-horizontal
+            if ddrRank && ddrRank.globalRank
+              .stat-item
+                .stat-label Global Rank
+                .stat-val(class=getRankTier(ddrRank.globalRank, ddrRank.totalGlobal)) ##{ddrRank.globalRank}
+            if ddrRank && ddrRank.nationalRank
+              .stat-item
+                .stat-label National Rank
+                .stat-val(class=getRankTier(ddrRank.nationalRank, ddrRank.totalNational)) ##{ddrRank.nationalRank}
+            .stat-item
+              .stat-label Total Scores
+              .stat-val #{ddrStats.totalScores}
+            if ddrStats.ddrCode
+              .stat-item
+                .stat-label DDR Code
+                .stat-val #{ddrStats.ddrCode}
+            if ddrStats.spDan
+              .stat-item
+                .stat-label SP Dan
+                .stat-val #{ddrStats.spDan}
+            if ddrStats.dpDan
+              .stat-item
+                .stat-label DP Dan
+                .stat-val #{ddrStats.dpDan}
+            if ddrStats.sessionPlaytime
+              .stat-item
+                .stat-label Session Playtime
+                .stat-val(title=ddrStats.sessionPlaytimeDetail style="cursor: help;") #{ddrStats.sessionPlaytime}
 
-block scripts
+          if ddrStats.recentPlays && ddrStats.recentPlays.length > 0
+            h3.section-title 🕒 Recent Plays
+            .notification.is-dark.has-text-left.mb-6
+              ul(style="list-style: none; padding: 0;")
+                each play in ddrStats.recentPlays
+                  li.mb-2(class=(play.clear !== null ? getDdrClearClass(play.clear) : '') style="padding-left: 10px; border-radius: 4px;")
+                    span.icon.is-small(style="color: #ff6666;"): i.mdi.mdi-arrow-up-bold-box-outline
+                    span.has-text-weight-bold  #{profile.name}
+                    |  played 
+                    span.has-text-weight-bold(style="color: #ff9966;") #{play.title} [#{play.diff}]
+                    |  - #{play.score}
+                    if play.rank
+                      span.tag.is-dark.is-small(style="margin-left: 8px;") #{play.rank}
+                    if play.dateStr && play.dateStr !== 'Unknown'
+                      div(style="color: #888; font-size: 0.8rem;") #{play.dateStr}
+
+          if ddrStats.firstPlaces && ddrStats.firstPlaces.length > 0
+            h3.section-title 🏆 First Place Scores (#{ddrStats.firstPlaces.length})
+            ul.score-list#ddr-first-places
+              each play, index in ddrStats.firstPlaces
+                li.score-card(style=(index >= 5 ? "display: none;" : "") class=(play.clear !== null ? getDdrClearClass(play.clear) : ''))
+                  if play.jacketUrl
+                    img.score-jacket(src=play.jacketUrl onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling && (this.nextElementSibling.style.display='flex');")
+                    .game-icon-box(style="color: #ff6666; display: none;")
+                      i.mdi.mdi-arrow-up-bold-box-outline
+                  else
+                    .game-icon-box(style="color: #ff6666;")
+                      i.mdi.mdi-arrow-up-bold-box-outline
+                  .score-info
+                    .score-title #{play.title}
+                    .score-meta
+                      span.diff-badge(class=getDdrDiffClass(play.diff)) #{play.diff}
+                      if play.rank
+                        span.rank-letter #{play.rank}
+                  .score-stats
+                    .stat-col
+                      .score-main-stat #{play.score}
+                      .score-sub-stat Score
+                    .score-date
+                      if play.dateStr
+                        | #{play.dateStr}
+                      else
+                        | —
+            if ddrStats.firstPlaces.length > 5
+              .show-more-container
+                button.show-more-btn(onclick="loadMoreScores('ddr-first-places', this)") SHOW MORE ⏷
+
+          if ddrStats.topPlays && ddrStats.topPlays.length > 0
+            h3.section-title ⭐ Top Plays
+            ul.score-list#ddr-top-plays
+              each play, index in ddrStats.topPlays
+                li.score-card(style=(index >= 5 ? "display: none;" : "") class=(play.clear !== null ? getDdrClearClass(play.clear) : ''))
+                  if play.jacketUrl
+                    img.score-jacket(src=play.jacketUrl onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling && (this.nextElementSibling.style.display='flex');")
+                    .game-icon-box(style="color: #ff6666; display: none;")
+                      i.mdi.mdi-arrow-up-bold-box-outline
+                  else
+                    .game-icon-box(style="color: #ff6666;")
+                      i.mdi.mdi-arrow-up-bold-box-outline
+                  .score-info
+                    .score-title #{play.title}
+                    .score-meta
+                      span.diff-badge(class=getDdrDiffClass(play.diff)) #{play.diff}
+                      if play.rank
+                        span.rank-letter #{play.rank}
+                  .score-stats
+                    .stat-col
+                      .score-main-stat.is-gold #{play.score}
+                      .score-sub-stat Score
+                    .score-date
+                      if play.dateStr && play.dateStr !== 'Unknown'
+                        | #{play.dateStr}
+                      else
+                        | —
+            if ddrStats.topPlays.length > 5
+              .show-more-container
+                button.show-more-btn(onclick="loadMoreScores('ddr-top-plays', this)") SHOW MORE ⏷
+        else
+          .notification.is-dark.has-text-centered.mt-4
+            span.icon.is-large: i.mdi.mdi-arrow-up-bold-box-outline.mdi-36px
+            p No DDR data available yet.
+
+      //-  ── POP'N MUSIC PANE ───────────────────────────────────────────────
+      #pane-popn.mt-5(style="display: none;")
+        if popnStats && popnStats.totalScores > 0
+          .stats-horizontal
+            if popnRank && popnRank.globalRank
+              .stat-item
+                .stat-label Global Rank
+                .stat-val(class=getRankTier(popnRank.globalRank, popnRank.totalGlobal)) ##{popnRank.globalRank}
+            if popnRank && popnRank.nationalRank
+              .stat-item
+                .stat-label National Rank
+                .stat-val(class=getRankTier(popnRank.nationalRank, popnRank.totalNational)) ##{popnRank.nationalRank}
+            .stat-item
+              .stat-label Total Scores
+              .stat-val #{popnStats.totalScores}
+            if popnStats.popnClass !== null && popnStats.popnClass !== undefined
+              .stat-item
+                .stat-label Pop'n Class
+                .stat-val #{popnStats.popnClass}
+            if popnStats.popnTier !== null && popnStats.popnTier !== undefined
+              .stat-item
+                .stat-label Pop'n Tier
+                .stat-val #{popnStats.popnTier}
+            if popnStats.sessionPlaytime
+              .stat-item
+                .stat-label Session Playtime
+                .stat-val(title=popnStats.sessionPlaytimeDetail style="cursor: help;") #{popnStats.sessionPlaytime}
+
+          if popnStats.recentPlays && popnStats.recentPlays.length > 0
+            h3.section-title 🕒 Recent Plays
+            .notification.is-dark.has-text-left.mb-6
+              ul(style="list-style: none; padding: 0;")
+                each play in popnStats.recentPlays
+                  li.mb-2(class=(play.clear !== null ? getPopnClearClass(play.clear) : '') style="padding-left: 10px; border-radius: 4px;")
+                    span.icon.is-small(style="color: #ff77dd;"): i.mdi.mdi-music-note-eighth
+                    span.has-text-weight-bold  #{profile.name}
+                    |  played 
+                    span.has-text-weight-bold(style="color: #ff99ee;") #{play.title} [#{play.diff}]
+                    |  - #{play.score}
+                    if play.dateStr && play.dateStr !== 'Unknown'
+                      div(style="color: #888; font-size: 0.8rem;") #{play.dateStr}
+
+          if popnStats.firstPlaces && popnStats.firstPlaces.length > 0
+            h3.section-title 🏆 First Place Scores (#{popnStats.firstPlaces.length})
+            ul.score-list#popn-first-places
+              each play, index in popnStats.firstPlaces
+                li.score-card(style=(index >= 5 ? "display: none;" : "") class=(play.clear !== null ? getPopnClearClass(play.clear) : ''))
+                  .game-icon-box(style="color: #ff77dd;")
+                    i.mdi.mdi-music-note-eighth
+                  .score-info
+                    .score-title #{play.title}
+                    .score-meta
+                      span.diff-badge(class=getPopnDiffClass(play.diff)) #{play.diff}
+                  .score-stats
+                    .stat-col
+                      .score-main-stat #{play.score}
+                      .score-sub-stat Score
+                    .score-date
+                      if play.dateStr
+                        | #{play.dateStr}
+                      else
+                        | —
+            if popnStats.firstPlaces.length > 5
+              .show-more-container
+                button.show-more-btn(onclick="loadMoreScores('popn-first-places', this)") SHOW MORE ⏷
+
+          if popnStats.topPlays && popnStats.topPlays.length > 0
+            h3.section-title ⭐ Top Plays
+            ul.score-list#popn-top-plays
+              each play, index in popnStats.topPlays
+                li.score-card(style=(index >= 5 ? "display: none;" : "") class=(play.clear !== null ? getPopnClearClass(play.clear) : ''))
+                  .game-icon-box(style="color: #ff77dd;")
+                    i.mdi.mdi-music-note-eighth
+                  .score-info
+                    .score-title #{play.title}
+                    .score-meta
+                      span.diff-badge(class=getPopnDiffClass(play.diff)) #{play.diff}
+                  .score-stats
+                    .stat-col
+                      .score-main-stat.is-gold #{play.score}
+                      .score-sub-stat Score
+                    if play.dateStr && play.dateStr !== 'Unknown'
+                      .score-date #{play.dateStr}
+                    else
+                      .score-date
+            if popnStats.topPlays.length > 5
+              .show-more-container
+                button.show-more-btn(onclick="loadMoreScores('popn-top-plays', this)") SHOW MORE ⏷
+        else
+          .notification.is-dark.has-text-centered.mt-4
+            span.icon.is-large: i.mdi.mdi-music-note-eighth.mdi-36px
+            p No Pop'n Music data available yet.
   script.
     const JACKET_DUMMY = 'https://jackets.ryu7w7.xyz/sdvx/jk_dummy.png';
     const MODAL_PLAYER_NAME = '!{profile.name}';
@@ -812,11 +1101,12 @@ block scripts
     }
 
     function switchTab(tab) {
-      document.getElementById('tab-sdvx').classList.remove('is-active');
-      document.getElementById('tab-iidx').classList.remove('is-active');
-      document.getElementById('pane-sdvx').style.display = 'none';
-      document.getElementById('pane-iidx').style.display = 'none';
-      
+      ['sdvx','iidx','ddr','popn'].forEach(function(t) {
+        var tabEl  = document.getElementById('tab-'  + t);
+        var paneEl = document.getElementById('pane-' + t);
+        if (tabEl)  tabEl.classList.remove('is-active');
+        if (paneEl) paneEl.style.display = 'none';
+      });
       document.getElementById('tab-' + tab).classList.add('is-active');
       document.getElementById('pane-' + tab).style.display = '';
     }
