@@ -12,7 +12,7 @@ import {
 } from '../../utils/EamuseIO';
 import { ROOT_CONTAINER } from '../../eamuse/index';
 import { wrap, adminMiddleware } from '../shared/middleware';
-import { data, ConfigData, DataFileCheck, userOwnsProfile } from '../shared/helpers';
+import { data, ConfigData, DataFileCheck, userOwnsProfile, ADMIN_ONLY_PAGES } from '../shared/helpers';
 import { Converter } from 'showdown';
 
 export const pluginRouter = Router();
@@ -163,8 +163,9 @@ pluginRouter.get(
     const pageName = req.params['page'];
     if (!plugin) return next();
 
-    const ADMIN_ONLY_PAGES = ['startup flags', 'unlock events', 'update webui assets', 'weekly score attack', 'custom charts admin', 'asset update'];
-    if (ADMIN_ONLY_PAGES.includes(pageName) && !req.session.user!.admin) {
+    const isAdmin = !!(req.session.user && req.session.user.admin);
+    const normalizedPage = pageName.toLowerCase().trim();
+    if (ADMIN_ONLY_PAGES.some(p => p.toLowerCase() === normalizedPage) && !isAdmin) {
       return res.redirect('/');
     }
 

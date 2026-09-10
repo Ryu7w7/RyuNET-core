@@ -45,7 +45,10 @@ ajax.post(
     const event = req.params.event;
 
     // Protect profile/score update events: only admin or profile owner
-    const OWNER_OR_ADMIN_EVENTS = ['updateProfile', 'updateScore', 'clearCustomChartScores'];
+    const OWNER_OR_ADMIN_EVENTS = [
+      'updateProfile', 'updateScore', 'clearCustomChartScores',
+      'updateMix', 'deleteMix', 'importMix',
+    ];
     if (OWNER_OR_ADMIN_EVENTS.includes(event) && req.body.refid) {
       const isAdmin = req.session.user && req.session.user.admin;
       const isOwner = await emitUserOwnsProfile(req, req.body.refid);
@@ -64,6 +67,7 @@ ajax.post(
       'manageEvents', 'manageStartupFlags', 'copyResourcesFromGame',
       'getPnmAssetUpdateLog', 'getPnmAssetStorage', 'clearPnmGeneratedAssets',
       'syncPnmDecorationAssets',
+      'saveMorePluginSettings', 'saveCustomAkanames', 'getMorePluginSettings',
     ];
     if (ADMIN_ONLY_EVENTS.includes(event)) {
       if (!req.session.user || !req.session.user.admin) {

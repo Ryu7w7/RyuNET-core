@@ -21,13 +21,15 @@ import {
 } from '../../utils/EamuseIO';
 import { ROOT_CONTAINER } from '../../eamuse/index';
 
-const ADMIN_ONLY_PAGES = [
+export const ADMIN_ONLY_PAGES = [
   'startup flags',
   'unlock events',
   'update webui assets',
   'weekly score attack',
   'custom charts admin',
   'asset update',
+  'automation paradise mixes',
+  'more plugin settings',
 ];
 
 export async function userOwnsProfile(req: Request, refid: string): Promise<boolean> {
@@ -65,7 +67,7 @@ export function data(req: Request, title: string, plugin: string, attr?: any) {
         name: p.Name,
         id: p.Identifier,
         webOnly: p.GameCodes.length == 0,
-        pages: p.Pages.filter(f => req.session.user?.admin || !ADMIN_ONLY_PAGES.includes(f)).map(
+        pages: p.Pages.filter(f => req.session.user?.admin || !ADMIN_ONLY_PAGES.some(a => a.toLowerCase() === f.toLowerCase())).map(
           f => ({ name: startCase(f), link: f })
         ),
       };
