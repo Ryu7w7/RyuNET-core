@@ -46,6 +46,31 @@ export interface EamuseInfo {
   model: string;
   ip?: string;
   pcbid?: string;
+  host?: string;
+  protocol?: string;
+  proxy?: boolean;
+}
+
+function forwardedHeader(req: any, name: string) {
+  const value = req.headers?.[name];
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value.split(',')[0].trim();
+}
+
+function stripPort(host: string) {
+  if (!host) {
+    return host;
+  }
+
+  if (host.startsWith('[')) {
+    const end = host.indexOf(']');
+    return end >= 0 ? host.slice(1, end) : host;
+  }
+
+  const colonIndex = host.lastIndexOf(':');
+  return colonIndex > 0 ? host.slice(0, colonIndex) : host;
 }
 
 export const EamuseMiddleware: RequestHandler = async (req, res, next) => {
@@ -215,13 +240,17 @@ export const EamuseRoute = (router: EamuseRootRouter): RequestHandler => {
 
     const send = new EamuseSend(body, res);
     const data = get(body.data, `call.${body.module}`);
+    const forwardedFor = forwardedHeader(req, 'x-forwarded-for');
+    const clientIp = forwardedFor || req.ip;
+    const cleanIp = clientIp && clientIp.includes(':') ? '127.0.0.1' : clientIp;
+
     const info: EamuseInfo = { 
       gameCode, 
       module: body.module, 
       method: body.method, 
       model: body.model,
       pcbid: body.pcbid,
-      ip: req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : (req.ip?.includes(':') ? '127.0.0.1' : req.ip)
+      ip: cleanIp,
     };
 
     if (body.pcbid) {
@@ -245,12 +274,21 @@ export const EamuseRoute = (router: EamuseRootRouter): RequestHandler => {
 
     // HACK: give facility ip
     if (body.module == 'facility' && body.method == 'get') {
-      (info as any).ip = info.ip;
+      const forwardedFor = forwardedHeader(req, 'x-forwarded-for');
+      const clientIp = forwardedFor || req.ip;
+      (info as any).ip = clientIp && clientIp.includes(':') ? '127.0.0.1' : clientIp;
     }
 
     // HACK: give services host
     if (body.module == 'services' && body.method == 'get') {
-      (info as any).host = req.hostname;
+      const forwardedHost = forwardedHeader(req, 'x-forwarded-host');
+      const forwardedProto = forwardedHeader(req, 'x-forwarded-proto');
+
+      (info as any).host = forwardedHost
+        ? stripPort(forwardedHost)
+        : req.hostname;
+      (info as any).protocol = forwardedProto || req.protocol;
+      (info as any).proxy = Boolean(forwardedHost || forwardedProto);
     }
 
     try {

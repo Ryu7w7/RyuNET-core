@@ -94,7 +94,9 @@ cardmng.add('cardmng.inquire', async (info, data, send) => {
       expired: 0,
       newflag: 0,
       refid: card.__refid,
-      lastupdate: Math.floor(Date.now() / 1000).toString(),
+      lastupdate: card.updatedAt
+        ? Math.floor(new Date(card.updatedAt).getTime() / 1000)
+        : Math.floor(Date.now() / 1000),
     },
   });
 

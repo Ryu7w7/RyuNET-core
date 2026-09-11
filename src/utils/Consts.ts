@@ -1,4 +1,4 @@
-export const VERSION = 'v1.60a';
+export const VERSION = 'v1.70b';
 export const NAMES = [
   'Aaron',
   'Abdullah',

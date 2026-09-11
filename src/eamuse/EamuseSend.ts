@@ -16,12 +16,14 @@ import { readFileSync } from 'fs';
 import { GetCallerPlugin } from './ExternalPluginLoader';
 
 export interface EamuseSendOption {
-  status?: number;
+  status?: number | string;
   encoding?: KBinEncoding;
   rootName?: string;
   compress?: boolean;
   kencode?: boolean;
   encrypt?: boolean;
+  format?: boolean;
+  header?: boolean;
 }
 
 export class EamuseSend {
@@ -74,6 +76,9 @@ export class EamuseSend {
     const compress = defaultTo(options.compress, this.body.compress);
     const encrypted = defaultTo(options.encrypt, this.body.encrypted);
 
+    const format = defaultTo(options.format, true);
+    const header = defaultTo(options.header, true);
+
     const result = { response: {} };
     content['@attr'] = { ...content['@attr'], status };
     set(result, `response.${rootName}`, content);
@@ -96,7 +101,7 @@ export class EamuseSend {
         return;
       }
     } else {
-      data = dataToXMLBuffer(result, encoding);
+      data = dataToXMLBuffer(result, { encoding, format, header });
     }
 
     let xcompress = 'none';
@@ -227,7 +232,7 @@ export class EamuseSend {
     return this.object({}, { ...options, status: 1 });
   }
 
-  status(code: number, options?: EamuseSendOption) {
+  status(code: number | string, options?: EamuseSendOption) {
     return this.object({}, { ...options, status: code });
   }
 }
