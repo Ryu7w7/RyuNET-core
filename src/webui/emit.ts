@@ -67,7 +67,7 @@ ajax.post(
       'manageEvents', 'manageStartupFlags', 'copyResourcesFromGame',
       'getPnmAssetUpdateLog', 'getPnmAssetStorage', 'clearPnmGeneratedAssets',
       'syncPnmDecorationAssets',
-      'saveMorePluginSettings', 'saveCustomAkanames', 'getMorePluginSettings',
+      'saveMorePluginSettings', 'saveCustomAkanames',
     ];
     if (ADMIN_ONLY_EVENTS.includes(event)) {
       if (!req.session.user || !req.session.user.admin) {
