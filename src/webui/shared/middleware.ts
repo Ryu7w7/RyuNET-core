@@ -20,7 +20,17 @@ export const authMiddleware: RequestHandler = wrap(async (req, res, next) => {
     path.includes('.well-known')
   ) return next();
 
-  if (!req.session.user) return res.redirect('/login');
+  if (!req.session.user) {
+    // If it's an API/fetch call, return JSON 401 instead of redirecting to HTML login page.
+    // This prevents "Unexpected token '<'" errors on the client side.
+    const isApiCall =
+      req.xhr ||
+      (req.headers.accept && req.headers.accept.includes('application/json')) ||
+      req.headers['x-requested-with'] === 'XMLHttpRequest' ||
+      req.method === 'POST';
+    if (isApiCall) return res.status(401).json({ success: false, description: 'Not authenticated' });
+    return res.redirect('/login');
+  }
   
   // Refresh user data from DB to get real-time updates (e.g. from Discord bot linking)
   const { FindUserByUsername } = require('../../utils/EamuseIO');
