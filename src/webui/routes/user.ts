@@ -17,7 +17,7 @@ import {
   DeleteCard,
 } from '../../utils/EamuseIO';
 import { json } from 'body-parser';
-import { wrap, adminMiddleware } from '../shared/middleware';
+import { wrap, adminMiddleware, invalidateUserCache } from '../shared/middleware';
 import { data } from '../shared/helpers';
 
 export const userRouter = Router();
@@ -315,6 +315,8 @@ userRouter.post(
     const target = await FindUserByUsername(username);
     if (target) {
       await SetUserAdmin(username, !target.admin);
+      // Invalidate cache so the admin change takes effect immediately
+      invalidateUserCache(username);
     }
     res.redirect('/users');
   })
@@ -372,6 +374,9 @@ userRouter.post(
 
     if (Object.keys(updateFields).length > 0) {
       await UpdateUserAccount(targetUser.username, updateFields);
+      // Invalidate cache for old username (and new one if renamed)
+      invalidateUserCache(targetUser.username);
+      if (updateFields.username) invalidateUserCache(updateFields.username);
       req.flash('formOk', 'User credentials updated successfully.');
     }
     

@@ -7,6 +7,36 @@ export const wrap =
     (...args: any[]) =>
       (fn as any)(...args).catch(args[2]);
 
+// ---------------------------------------------------------------------------
+// Per-user DB lookup cache — avoids hitting the DB on every authenticated
+// request. TTL of 30 seconds: short enough that admin/Discord changes
+// propagate quickly, long enough to dramatically reduce DB pressure under load.
+// ---------------------------------------------------------------------------
+const USER_CACHE_TTL_MS = 30_000;
+interface CachedUser { user: any; expiresAt: number; }
+const _userCache = new Map<string, CachedUser>();
+
+/** Returns a cached user record or null (if not cached / expired). */
+function getCachedUser(username: string): any | null {
+  const entry = _userCache.get(username);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    _userCache.delete(username);
+    return null;
+  }
+  return entry.user;
+}
+
+/** Stores a user record in the cache. Pass null to mark the user as deleted. */
+function setCachedUser(username: string, user: any | null): void {
+  _userCache.set(username, { user, expiresAt: Date.now() + USER_CACHE_TTL_MS });
+}
+
+/** Invalidates a specific user's cache entry (e.g. after an admin action). */
+export function invalidateUserCache(username: string): void {
+  _userCache.delete(username);
+}
+
 // Authentication middleware to ensure only logged-in users can access certain routes
 export const authMiddleware: RequestHandler = wrap(async (req, res, next) => {
   const path = req.path.toLowerCase();
@@ -31,11 +61,18 @@ export const authMiddleware: RequestHandler = wrap(async (req, res, next) => {
     if (isApiCall) return res.status(401).json({ success: false, description: 'Not authenticated' });
     return res.redirect('/login');
   }
-  
-  // Refresh user data from DB to get real-time updates (e.g. from Discord bot linking)
-  const { FindUserByUsername } = require('../../utils/EamuseIO');
-  const dbUser = await FindUserByUsername(req.session.user.username);
-  
+
+  const username = req.session.user.username;
+
+  // Check cache first — avoids a DB query on every authenticated request.
+  let dbUser = getCachedUser(username);
+  if (dbUser === null) {
+    // Cache miss or entry marked-deleted: query the DB.
+    const { FindUserByUsername } = require('../../utils/EamuseIO');
+    dbUser = await FindUserByUsername(username);
+    setCachedUser(username, dbUser ?? null);
+  }
+
   if (dbUser) {
     // Preserve any existing session properties while updating core fields from DB
     req.session.user = {
