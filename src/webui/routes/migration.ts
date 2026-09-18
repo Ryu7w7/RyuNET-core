@@ -473,11 +473,7 @@ migrationRouter.post(
           }
         } else {
           // New record
-          await APIInsert(plugin, refid, {
-            ...s,
-            _id: undefined,
-            __refid: refid,
-          });
+          await APIInsert(plugin, refid, { ...s });
           inserted++;
         }
       } catch (err) {
