@@ -270,6 +270,13 @@ migrationRouter.post(
 
     for (const s of scores) {
       try {
+        // Strip ALL NeDB internal fields (__s, __refid, __id, _id, etc.)
+        // NeDB rejects any query/doc field that starts with "__".
+        delete s._id;
+        for (const key of Object.keys(s)) {
+          if (key.startsWith('__')) delete s[key];
+        }
+
         const mid = s.mid || s.music_id;
         if (mid === undefined) continue;
 
@@ -339,12 +346,7 @@ migrationRouter.post(
           if (esArr.slice(0, 5).some(v => v > 0)) spAdded++;
           if (esArr.slice(5, 10).some(v => v > 0)) dpAdded++;
 
-          await APIInsert(plugin, refid, {
-            collection: 'score',
-            ...s,
-            _id: undefined, // Ensure we don't carry over NeDB internal IDs
-            __refid: refid,
-          });
+          await APIInsert(plugin, refid, { collection: 'score', ...s });
           inserted++;
         }
       } catch (err) {
@@ -423,10 +425,13 @@ migrationRouter.post(
       try {
         if (!s.collection || (s.collection !== 'score' && s.collection !== 'score3')) continue;
 
+        // Strip ALL NeDB internal fields (__s, __refid, __id, _id, etc.)
+        // NeDB rejects any query/doc field that starts with "__".
         delete s._id;
-        delete s.__s;
-        delete s.__refid;
-        
+        for (const key of Object.keys(s)) {
+          if (key.startsWith('__')) delete s[key];
+        }
+
         // Match condition depends on collection
         let matchCond: any = { collection: s.collection, songId: s.songId };
         if (s.collection === 'score') {
