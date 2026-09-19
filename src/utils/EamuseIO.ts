@@ -286,7 +286,7 @@ export async function PluginStats(): Promise<
   }
 
   for (const savefile of list) {
-    if (savefile.startsWith('_') || savefile.startsWith('.') || savefile.startsWith('core')) {
+    if (savefile.startsWith('_') || savefile.startsWith('.') || savefile.startsWith('core') || !savefile.endsWith('.db')) {
       continue;
     }
 
@@ -449,7 +449,7 @@ export async function PurgeProfile(refid: string) {
 
   const list = await fsp.readdir(SAVE_PATH);
   for (const savefile of list) {
-    if (savefile.startsWith('_') || savefile.startsWith('.') || savefile.startsWith('core')) {
+    if (savefile.startsWith('_') || savefile.startsWith('.') || savefile.startsWith('core') || !savefile.endsWith('.db')) {
       continue;
     }
 
