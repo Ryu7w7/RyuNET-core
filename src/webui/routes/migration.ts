@@ -146,8 +146,20 @@ migrationRouter.post(
     const plugin = { identifier: 'sdvx@asphyxia', core: false };
     let saved = 0, skipped = 0, inserted = 0;
 
+    // rankMaps: normalizes a clear value (by its source version) to a canonical rank (higher = better).
+    // v6: 0=NoData,1=Played,2=EffClear,3=ExcClear,4=UC,5=PUC,6=MaxxiveClear
+    // v7: 0=NoData,1=Played,2=EffClear,3=ExcClear,4=MaxxiveClear,5=UC,6=PUC
+    // Canonical: 0=NoData,1=Played,2=EffClear,3=ExcClear,4=MaxxiveClear,5=UC,6=PUC
     const rankMaps: any = { 6: { 0:0, 1:1, 2:2, 3:3, 6:4, 4:5, 5:6 }, 7: { 0:0, 1:1, 2:2, 3:3, 4:4, 5:5, 6:6 } };
     const getClearRank = (c: number, v: number) => (rankMaps[v] || rankMaps[6])[c] ?? 0;
+
+    // Converts a clear value from one version format to another.
+    const clearFromCanonical: any = { 6: { 0:0, 1:1, 2:2, 3:3, 4:6, 5:4, 6:5 }, 7: { 0:0, 1:1, 2:2, 3:3, 4:4, 5:5, 6:6 } };
+    const convertClear = (c: number, srcVer: number, dstVer: number): number => {
+      if (srcVer === dstVer) return c;
+      const rank = getClearRank(c, srcVer);
+      return (clearFromCanonical[dstVer] || clearFromCanonical[7])[rank] ?? c;
+    };
 
     // Detect what versions the user has profiles for (to sync scores across Exceed Gear / Valkyrie)
     let versions = [6];
@@ -172,7 +184,11 @@ migrationRouter.post(
               update.longRate = s.longRate || 0;
               update.volRate = s.volRate || 0;
             }
-            if (getClearRank(s.clear, v) > getClearRank(ex.clear, ex.version||v)) update.clear = s.clear;
+            // Use the source score's version (s.version) to interpret the imported clear value,
+            // then convert it to the target version format before comparing and storing.
+            const srcVer = s.version || v;
+            const convertedClear = convertClear(s.clear, srcVer, v);
+            if (getClearRank(s.clear, srcVer) > getClearRank(ex.clear, ex.version || v)) update.clear = convertedClear;
             if (s.grade && (!ex.grade || s.grade > ex.grade)) update.grade = s.grade;
             if (s.exscore && (!ex.exscore || s.exscore > ex.exscore)) update.exscore = s.exscore;
             if (s.volforce && (!ex.volforce || s.volforce > ex.volforce)) update.volforce = s.volforce;
@@ -184,9 +200,11 @@ migrationRouter.post(
               if (v === versions[0]) skipped++;
             }
           } else {
-            // New record: seed playCount to 1 to reflect the import as at least one play.
+            // New record: convert clear to target version format before inserting.
+            const srcVer = s.version || v;
             await APIInsert(plugin, refid, {
-              collection: 'music', mid: s.mid, type: s.type, score: s.score || 0, clear: s.clear || 0,
+              collection: 'music', mid: s.mid, type: s.type, score: s.score || 0,
+              clear: convertClear(s.clear, srcVer, v),
               exscore: s.exscore || 0, grade: s.grade || 0, buttonRate: s.buttonRate || 0,
               longRate: s.longRate || 0, volRate: s.volRate || 0, volforce: s.volforce || 0,
               version: v, dbver: 1, playCount: 1,
