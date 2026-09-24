@@ -9,6 +9,7 @@ import express from 'express';
 import chalk from 'chalk';
 import { LoadExternalPlugins } from './eamuse/ExternalPluginLoader';
 import { webui } from './webui/index';
+import { AogMiddleware, AogGetMiddleware } from './middlewares/AogMiddleware';
 import path from 'path';
 import { ASSETS_PATH, LoadCoreDB, SeedDefaultAdmin } from './utils/EamuseIO';
 import open from 'open';
@@ -74,6 +75,9 @@ function Main() {
   // ========== EAMUSE ============
   EAMUSE.set('views', path.join(ASSETS_PATH, 'views'));
   EAMUSE.set('view engine', 'pug');
+  // AOG (Mahjong Fight Girl) and health endpoints must be handled BEFORE e-amuse wildcard
+  EAMUSE.use(AogGetMiddleware);
+  EAMUSE.use(AogMiddleware);
   EAMUSE.use('*', services(CONFIG.port, external));
   EAMUSE.use('/static', express.static(path.join(ASSETS_PATH, 'static')));
   const UPLOADS_PATH = path.join((process as any).pkg ? path.dirname(process.argv0) : process.cwd(), 'uploads');

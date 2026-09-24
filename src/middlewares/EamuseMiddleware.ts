@@ -77,8 +77,25 @@ export const EamuseMiddleware: RequestHandler = async (req, res, next) => {
   res.set('X-Powered-By', 'Asphyxia');
 
   const agent = req.headers['user-agent'] || '';
+  const url = req.originalUrl || req.url || '';
 
-  if (agent.indexOf('Mozilla') >= 0 || req.originalUrl.startsWith('/api/')) {
+  // MFG AOG and health endpoints must bypass e-amuse parsing
+  if (
+    agent.indexOf('Mozilla') >= 0 ||
+    url.startsWith('/api/') ||
+    url.startsWith('/aog') ||
+    url.startsWith('/core/') ||
+    url === '/' ||
+    url === '/health' ||
+    url === '/status'
+  ) {
+    (req as any).skip = true;
+    return next();
+  }
+
+  // AOG posts are form-urlencoded but NOT EaCloud - let AOG handler deal with them
+  const ctype = (req.headers['content-type'] || '').toString();
+  if (ctype.includes('application/x-www-form-urlencoded') && url.includes('/aog')) {
     (req as any).skip = true;
     return next();
   }
@@ -289,6 +306,15 @@ export const EamuseRoute = (router: EamuseRootRouter): RequestHandler => {
         : req.hostname;
       (info as any).protocol = forwardedProto || req.protocol;
       (info as any).proxy = Boolean(forwardedHost || forwardedProto);
+      // Also expose port for AOG service_url generation
+      try {
+        const hostHeader = String(req.headers.host || '');
+        const portFromHost = hostHeader.includes(':') ? hostHeader.split(':').pop() : '';
+        if (portFromHost && /^\d+$/.test(portFromHost)) (info as any).port = parseInt(portFromHost, 10);
+        else if (CONFIG && CONFIG.port) (info as any).port = Number(CONFIG.port);
+        // Fallback to localPort
+        if (!(info as any).port && (req.socket as any)?.localPort) (info as any).port = Number((req.socket as any).localPort);
+      } catch {}
     }
 
     try {

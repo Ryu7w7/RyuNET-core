@@ -48,6 +48,7 @@ import { isPlainObject } from 'lodash';
 import { VERSION } from '../utils/Consts';
 import { card2nfc, nfc2card } from '../utils/CardCipher';
 import { PluginRegisterModules } from '.';
+import { registerAogRoute, registerAogFallback } from '../aog/AogRegistry';
 
 /** Caller Detection */
 export function GetCallerPlugin(): string {
@@ -202,6 +203,8 @@ export function LoadExternalPlugins() {
     Contributor: () => { },
     Config: () => { },
     WebUIEvent: () => { },
+    AogRoute: () => { },
+    AogUnhandled: () => { },
   };
 
   $.CORE_VERSION = VERSION;
@@ -233,6 +236,12 @@ export function LoadExternalPlugins() {
     $.R.ExtraModuleHandler = (handler: (model: string) => Promise<string[] | string>) => {
       PluginRegisterModules(plugin.Identifier, handler);
     };
+    $.R.AogRoute = (name: string, handler: any) => {
+      registerAogRoute(name, handler);
+    };
+    $.R.AogUnhandled = (handler: any) => {
+      registerAogFallback(handler);
+    };
   }
 
   function DisableRegisterNamespace() {
@@ -242,6 +251,8 @@ export function LoadExternalPlugins() {
     $.R.Contributor = () => { };
     $.R.Config = () => { };
     $.R.WebUIEvent = () => { };
+    $.R.AogRoute = () => { };
+    $.R.AogUnhandled = () => { };
   }
 
   // Bypassed: Enable console.log unconditionally for all plugins
