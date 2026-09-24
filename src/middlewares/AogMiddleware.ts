@@ -55,7 +55,9 @@ export const AogMiddleware: RequestHandler = async (req, res, next) => {
       } catch {}
 
       const name = gameApiName(url);
-      Logger.info(`[AOG] /${name} keys=${Object.keys(form).join(',')}`, { plugin: 'mfg@asphyxia' });
+      if (!["gget", "gchat", "gpost", "keep_alive", "client_state_read", "client_state_write"].includes(name)) {
+        Logger.info(`[AOG] /${name} keys=${Object.keys(form).join(',')}`, { plugin: 'mfg@asphyxia' });
+      }
 
       const handler = getAogHandler(name);
       if (handler) {
