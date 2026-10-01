@@ -397,19 +397,23 @@ export async function FindProfile(refid: string) {
   }
 }
 
-export async function CreateProfile(pin: string, gameCode: string) {
+export async function CreateProfile(pin: string, gameCode: string, refid?: string) {
   if (!CONFIG.allow_register) return false;
 
-  const count = await GetUniqueInt();
-  if (count < 0) return false;
-
-  const refid = 'A' + ID_GEN.encode(count * 16 + Math.floor(Math.random() * 16));
+  // XIF passes its own 16-digit numeric refid (the EA3 client rejects the
+  // default A+hex form). Everyone else gets the legacy generated one.
+  let newRefid = refid;
+  if (!newRefid) {
+    const count = await GetUniqueInt();
+    if (count < 0) return false;
+    newRefid = 'A' + ID_GEN.encode(count * 16 + Math.floor(Math.random() * 16));
+  }
   const name = NAMES[Math.floor(Math.random() * NAMES.length)];
 
   try {
     return await CoreDB.insertAsync({
       __s: 'profile',
-      __refid: refid,
+      __refid: newRefid,
       pin,
       name,
       models: [gameCode],

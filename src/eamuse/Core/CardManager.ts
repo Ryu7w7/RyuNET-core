@@ -18,6 +18,28 @@ import {
 
 export const cardmng = new EamuseRouteContainer();
 
+// 8-digit zero-padded code derived from the refid (standard eamuse pcode).
+// Must stay a string: numeric serialization would drop leading zeros.
+function pcode(refid: string): string {
+  try {
+    const v = parseInt((refid || '').slice(0, 8), 16);
+    if (!isNaN(v)) return String(v % 100000000).padStart(8, '0');
+  } catch {}
+  return '00000000';
+}
+
+async function inquireAttrs(refid: string, gameCode: string) {
+  return {
+    binded: (await CheckProfile(gameCode, refid)) ? 1 : 0,
+    dataid: refid,
+    ecflag: 1,
+    expired: 0,
+    newflag: 0,
+    pcode: pcode(refid),
+    refid,
+  };
+}
+
 async function CheckProfile(gameCode: string, refid: string) {
   const plugin = ROOT_CONTAINER.getPluginByCode(gameCode);
   if (!plugin) {
@@ -35,22 +57,64 @@ cardmng.add('cardmng.inquire', async (info, data, send) => {
 
   // let refid = CARD_CACHE[cid];
 
-  const card = await FindCard(cid);
+  let card = await FindCard(cid);
+
+  // Self-heal: cards provisioned before numeric refids (A+hex, e.g. from the
+  // first XIF test session) are rejected by the XIF client outright
+  // (ThrowIfInvalidRefId). Drop and re-provision them as numeric.
+  if (card && info.gameCode === 'XIF' && !/^[0-9]{16}$/.test(card.__refid || '')) {
+    await DeleteCard(cid);
+    card = await FindCard(cid);
+  }
 
   if (!card) {
+    // XIF (EA3 Unity card service) decides new-card vs repeater from the
+    // NATIVE header (Status=-18/StatusCode=112), which the HTTP transport
+    // always reports as success — so a 112 here surfaces client-side as
+    // INSUFFICIENT NODE instead of the NewCard flow. Auto-provision the
+    // card instead; the game finishes binding via bindmodel/getrefid.
+    // Other games keep the legacy 112 (they read the module status).
+    if (info.gameCode === 'XIF') {
+      const created = await provisionCard(cid, info.gameCode);
+      if (created) {
+        return send.object({
+          '@attr': {
+            ...(await inquireAttrs(created, info.gameCode)),
+            lastupdate: Math.floor(Date.now() / 1000),
+          },
+        });
+      }
+    }
     // Create new account
     return send.status(112);
   }
 
   const profile = await FindProfile(card.__refid);
   if (!profile) {
-    await DeleteCard(cid);
+    if (info.gameCode === 'XIF') {
+      await DeleteCard(cid);
+      const created = await provisionCard(cid, info.gameCode);
+      if (created) {
+        return send.object({
+          '@attr': {
+            ...(await inquireAttrs(created, info.gameCode)),
+            lastupdate: Math.floor(Date.now() / 1000),
+          },
+        });
+      }
+    } else {
+      await DeleteCard(cid);
+    }
     return send.status(112);
   }
 
   if (profile.pin === 'unset') {
-    // need update pin
-    return send.status(112);
+    // XIF: same native-header limitation as above — let it through, the PIN
+    // is (re)set via getrefid and authpass accepts anything over HTTP.
+    if (info.gameCode !== 'XIF') {
+      // need update pin
+      return send.status(112);
+    }
   }
 
   // Identify Country asynchronously based on IP address
@@ -88,12 +152,7 @@ cardmng.add('cardmng.inquire', async (info, data, send) => {
 
   send.object({
     '@attr': {
-      binded: (await CheckProfile(info.gameCode, card.__refid)) ? 1 : 0,
-      dataid: card.__refid,
-      ecflag: 1,
-      expired: 0,
-      newflag: 0,
-      refid: card.__refid,
+      ...(await inquireAttrs(card.__refid, info.gameCode)),
       lastupdate: card.updatedAt
         ? Math.floor(new Date(card.updatedAt).getTime() / 1000)
         : Math.floor(Date.now() / 1000),
@@ -102,6 +161,30 @@ cardmng.add('cardmng.inquire', async (info, data, send) => {
 
   return;
 });
+
+// Provision a fresh card+profile pair (mirrors the getrefid create branch).
+// XIF needs a 16-digit numeric refid (its client rejects A+hex), so generate
+// one and check it against the DB. Returns the new refid, or null.
+async function provisionCard(cid: string, gameCode: string): Promise<string | null> {
+  let refid: string | undefined;
+  if (gameCode === 'XIF') {
+    for (let i = 0; i < 25; i++) {
+      let s = String(1 + Math.floor(Math.random() * 9));
+      for (let k = 1; k < 16; k++) s += String(Math.floor(Math.random() * 10));
+      if (!(await FindProfile(s))) {
+        refid = s;
+        break;
+      }
+    }
+    if (!refid) return null;
+  }
+  const newProfile = await CreateProfile('0000', gameCode, refid);
+  if (!newProfile) return null;
+  const created = newProfile.__refid;
+  const newCard = await CreateCard(cid, created);
+  if (!newCard) return null;
+  return created;
+}
 
 cardmng.add('cardmng.getrefid', async (info, data, send) => {
   const cid: string = get(data, '@attr.cardid');
@@ -113,7 +196,9 @@ cardmng.add('cardmng.getrefid', async (info, data, send) => {
     const updated = await UpdateProfile(card.__refid, { pin }, true);
     if (updated) {
       await BindProfile(card.__refid, info.gameCode);
-      return send.object({ '@attr': { dataid: card.__refid, refid: card.__refid } });
+      return send.object({
+        '@attr': { dataid: card.__refid, refid: card.__refid, pcode: pcode(card.__refid) },
+      });
     } else {
       return send.deny();
     }
@@ -143,7 +228,7 @@ cardmng.add('cardmng.getrefid', async (info, data, send) => {
     }
   }
 
-  send.object({ '@attr': { dataid: refid, refid } });
+  send.object({ '@attr': { dataid: refid, refid, pcode: pcode(refid) } });
   return;
 });
 
@@ -155,6 +240,17 @@ cardmng.add('cardmng.authpass', async (info, data, send) => {
 
   if (!profile) {
     return send.status(110);
+  }
+
+  if (info.gameCode === 'XIF') {
+    // EA3 Unity reports authpass failures via the NATIVE header, which the
+    // HTTP transport cannot carry per-method — and first-login cards are
+    // auto-provisioned with a placeholder PIN anyway. Accept the entered
+    // PIN and store it, so the DB converges to what the player uses.
+    if (profile.pin !== pass) {
+      await UpdateProfile(refid, { pin: pass });
+    }
+    return send.success();
   }
 
   if (profile.pin !== pass) {
