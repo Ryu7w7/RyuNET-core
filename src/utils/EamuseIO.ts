@@ -397,6 +397,29 @@ export async function FindProfile(refid: string) {
   }
 }
 
+// Create a minimal core.db profile entry for a derived refid (e.g. the
+// numeric refid used by Polaris Chord / XIF). This is NOT a real user
+// registration — it is a phantom entry that exists solely so that plugin
+// DB.Upsert calls (which guard with FindProfile) are not rejected.
+// The entry carries a `phantom: true` marker for diagnostics.
+export async function EnsurePhantomProfile(refid: string, gameCode: string) {
+  try {
+    const existing = await FindProfile(refid);
+    if (existing) return existing;
+    return await CoreDB.insertAsync({
+      __s: 'profile',
+      __refid: refid,
+      pin: 'unset',
+      name: 'GUEST',
+      models: [gameCode],
+      phantom: true,
+    });
+  } catch (err) {
+    Logger.error(err);
+    return false;
+  }
+}
+
 export async function CreateProfile(pin: string, gameCode: string, refid?: string) {
   if (!CONFIG.allow_register) return false;
 

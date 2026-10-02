@@ -52,12 +52,12 @@ eacoin.add('eacoin.checkin', async (info, data, send) => {
 
   const { balance, sessid } = await getPaseliBalanceAndSessid(data);
 
+  set(result, 'sequence', kitem('s16', 0));
+  set(result, 'acstatus', kitem('u8', 0));
+  set(result, 'acid', kitem('str', 'LOCAL'));
+  set(result, 'acname', kitem('str', 'LOCAL'));
   set(result, 'balance', kitem('s32', balance));
   set(result, 'sessid', kitem('str', sessid));
-  set(result, 'acstatus', kitem('u8', 0));
-  set(result, 'sequence', kitem('s16', 1));
-  set(result, 'acid', kitem('str', 'EACOIN'));
-  set(result, 'acname', kitem('str', 'EACOIN'));
 
   send.object(result);
   return;

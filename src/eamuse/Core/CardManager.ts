@@ -9,6 +9,7 @@ import {
   DeleteCard,
   CreateCard,
   UpdateProfile,
+  EnsurePhantomProfile,
   APIFindOne,
   FindUserByCardNumber,
   UpdateUserAccount,
@@ -16,7 +17,14 @@ import {
   FindUserByUsername,
 } from '../../utils/EamuseIO';
 
+
 export const cardmng = new EamuseRouteContainer();
+
+// Game codes that use the EA3 Unity client stack.
+// These clients communicate PIN/status via the NATIVE header rather than
+// the module-level status code, so several legacy behaviours must be skipped.
+// XIF = Polaris Chord, VFG = Mahjong Fight Girl (MFG)
+const EA3_UNITY = new Set(['XIF', 'VFG']);
 
 // 8-digit zero-padded code derived from the refid (standard eamuse pcode).
 // Must stay a string: numeric serialization would drop leading zeros.
@@ -28,15 +36,44 @@ function pcode(refid: string): string {
   return '00000000';
 }
 
+// Derive a deterministic 16-digit numeric refid from an A+hex refid.
+// Polaris Chord (XIF) rejects non-numeric refids (ThrowIfInvalidRefId),
+// but we cannot change the card's stored refid in core.db because other
+// games (SDVX, etc.) still use the original A+hex refid to find profiles.
+// This mapping is lossless and deterministic: same A+hex → same numeric,
+// so no side-table is needed — we re-derive it on every cardmng.inquire.
+function deriveXifNumericRefid(hexRefid: string): string {
+  let h = BigInt(5381);
+  for (let i = 0; i < hexRefid.length; i++) {
+    h = ((h << BigInt(5)) + h + BigInt(hexRefid.charCodeAt(i))) & BigInt('0xFFFFFFFFFFFFFFFF');
+  }
+  return (h % BigInt('10000000000000000')).toString().padStart(16, '0');
+}
+
 async function inquireAttrs(refid: string, gameCode: string) {
+  // For EA3 Unity games (XIF = Polaris Chord), translate any A+hex refid to
+  // a 16-digit numeric one before sending it to the client.  The client's
+  // ThrowIfInvalidRefId would reject 'A93A7D4D29854E2B' with
+  // "RefID contains invalid character" and abort the login flow.
+  // We translate ONLY in the response — the stored refid in core.db stays
+  // as-is so that SDVX and other legacy games remain unaffected.
+  // We also ensure a phantom core.db profile exists under the numeric refid
+  // so that plugin DB.Upsert (which guards with FindProfile) does not reject
+  // polaris@asphyxia profile saves.
+  let effectiveRefid = refid;
+  if (EA3_UNITY.has(gameCode) && !/^[0-9]{16}$/.test(refid)) {
+    effectiveRefid = deriveXifNumericRefid(refid);
+    // Fire-and-forget — don't block the inquire response on the insert.
+    EnsurePhantomProfile(effectiveRefid, gameCode).catch(() => {});
+  }
   return {
-    binded: (await CheckProfile(gameCode, refid)) ? 1 : 0,
-    dataid: refid,
+    binded: (await CheckProfile(gameCode, effectiveRefid)) ? 1 : 0,
+    dataid: effectiveRefid,
     ecflag: 1,
     expired: 0,
     newflag: 0,
     pcode: pcode(refid),
-    refid,
+    refid: effectiveRefid,
   };
 }
 
@@ -59,59 +96,24 @@ cardmng.add('cardmng.inquire', async (info, data, send) => {
 
   let card = await FindCard(cid);
 
-  // Self-heal: cards provisioned before numeric refids (A+hex, e.g. from the
-  // first XIF test session) are rejected by the XIF client outright
-  // (ThrowIfInvalidRefId). Drop and re-provision them as numeric.
-  if (card && info.gameCode === 'XIF' && !/^[0-9]{16}$/.test(card.__refid || '')) {
-    await DeleteCard(cid);
-    card = await FindCard(cid);
-  }
+
+
 
   if (!card) {
-    // XIF (EA3 Unity card service) decides new-card vs repeater from the
-    // NATIVE header (Status=-18/StatusCode=112), which the HTTP transport
-    // always reports as success — so a 112 here surfaces client-side as
-    // INSUFFICIENT NODE instead of the NewCard flow. Auto-provision the
-    // card instead; the game finishes binding via bindmodel/getrefid.
-    // Other games keep the legacy 112 (they read the module status).
-    if (info.gameCode === 'XIF') {
-      const created = await provisionCard(cid, info.gameCode);
-      if (created) {
-        return send.object({
-          '@attr': {
-            ...(await inquireAttrs(created, info.gameCode)),
-            lastupdate: Math.floor(Date.now() / 1000),
-          },
-        });
-      }
-    }
     // Create new account
     return send.status(112);
   }
 
   const profile = await FindProfile(card.__refid);
   if (!profile) {
-    if (info.gameCode === 'XIF') {
-      await DeleteCard(cid);
-      const created = await provisionCard(cid, info.gameCode);
-      if (created) {
-        return send.object({
-          '@attr': {
-            ...(await inquireAttrs(created, info.gameCode)),
-            lastupdate: Math.floor(Date.now() / 1000),
-          },
-        });
-      }
-    } else {
-      await DeleteCard(cid);
-    }
+    await DeleteCard(cid);
     return send.status(112);
   }
 
   if (profile.pin === 'unset') {
-    // XIF: same native-header limitation as above — let it through, the PIN
-    // is (re)set via getrefid and authpass accepts anything over HTTP.
-    if (info.gameCode !== 'XIF') {
+    // EA3 Unity (XIF/JBC): same native-header limitation — let it through,
+    // the PIN is (re)set via getrefid and authpass accepts anything over HTTP.
+    if (!EA3_UNITY.has(info.gameCode)) {
       // need update pin
       return send.status(112);
     }
@@ -236,21 +238,20 @@ cardmng.add('cardmng.authpass', async (info, data, send) => {
   const refid = get(data, '@attr.refid', null);
   const pass = get(data, '@attr.pass', '-1');
 
+  // EA3 Unity (XIF = Polaris Chord, VFG = MFG): the client sends the derived
+  // numeric refid which doesn't exist in core.db (the stored refid is A+hex).
+  // FindProfile would return null and we'd send status 110, crashing the
+  // login flow. Skip the lookup entirely — these clients report auth failures
+  // via the NATIVE header which the HTTP transport cannot carry per-method,
+  // so the PIN check is irrelevant over HTTP. Accept unconditionally.
+  if (EA3_UNITY.has(info.gameCode)) {
+    return send.success();
+  }
+
   const profile = await FindProfile(refid);
 
   if (!profile) {
     return send.status(110);
-  }
-
-  if (info.gameCode === 'XIF') {
-    // EA3 Unity reports authpass failures via the NATIVE header, which the
-    // HTTP transport cannot carry per-method — and first-login cards are
-    // auto-provisioned with a placeholder PIN anyway. Accept the entered
-    // PIN and store it, so the DB converges to what the player uses.
-    if (profile.pin !== pass) {
-      await UpdateProfile(refid, { pin: pass });
-    }
-    return send.success();
   }
 
   if (profile.pin !== pass) {
