@@ -182,8 +182,25 @@ pluginRouter.get(
         if (cardNumber) {
             const card = await FindCard(cardNumber);
             if (card && card.__refid) {
-                console.log(`[PluginRedirector] Auto-resolving RefID for ${plugin.Identifier} -> ${card.__refid}`);
-                return res.redirect(`/plugin/${plugin.Identifier}/profile?refid=${card.__refid}`);
+                let effectiveRefid: string = card.__refid;
+                // EA3 Unity games (XIF = Polaris Chord, VFG = MFG) store plugin data
+                // under a deterministic 16-digit numeric refid derived from the A+hex
+                // card refid.  Without this translation the profile page would use the
+                // raw A+hex refid and find nothing in the plugin DB.
+                const EA3_UNITY_CODES = new Set(['XIF', 'VFG']);
+                if (
+                  plugin.GameCodes.some((c: string) => EA3_UNITY_CODES.has(c)) &&
+                  /^[A-F0-9]{16}$/i.test(effectiveRefid)
+                ) {
+                  let h = BigInt(5381);
+                  const upper = effectiveRefid.toUpperCase();
+                  for (let i = 0; i < upper.length; i++) {
+                    h = ((h << BigInt(5)) + h + BigInt(upper.charCodeAt(i))) & BigInt('0xFFFFFFFFFFFFFFFF');
+                  }
+                  effectiveRefid = (h % BigInt('10000000000000000')).toString().padStart(16, '0');
+                }
+                console.log(`[PluginRedirector] Auto-resolving RefID for ${plugin.Identifier} -> ${effectiveRefid}`);
+                return res.redirect(`/plugin/${plugin.Identifier}/profile?refid=${effectiveRefid}`);
             }
         }
     }
