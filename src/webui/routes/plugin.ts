@@ -190,7 +190,7 @@ pluginRouter.get(
                 const EA3_UNITY_CODES = new Set(['XIF', 'VFG']);
                 if (
                   plugin.GameCodes.some((c: string) => EA3_UNITY_CODES.has(c)) &&
-                  /^[A-F0-9]{16}$/i.test(effectiveRefid)
+                  !/^[0-9]{16}$/.test(effectiveRefid)
                 ) {
                   let h = BigInt(5381);
                   const upper = effectiveRefid.toUpperCase();
