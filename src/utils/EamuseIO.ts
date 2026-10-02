@@ -387,8 +387,17 @@ export async function DeleteCard(cid: string) {
 
 export async function FindProfile(refid: string) {
   try {
-    return await CoreDB.findOneAsync<any>({
+    const profile = await CoreDB.findOneAsync<any>({
       __s: 'profile',
+      __refid: refid,
+    });
+    if (profile) return profile;
+    // Also accept lightweight refid alias entries (created for EA3_UNITY
+    // derived numeric refids so plugin DB.Upsert can save without a full
+    // core profile). Aliases use __s:'refid_alias' so they are invisible
+    // to the admin user list (which only queries __s:'profile').
+    return await CoreDB.findOneAsync<any>({
+      __s: 'refid_alias',
       __refid: refid,
     });
   } catch (err) {
@@ -397,28 +406,27 @@ export async function FindProfile(refid: string) {
   }
 }
 
-// Create a minimal core.db profile entry for a derived refid (e.g. the
-// numeric refid used by Polaris Chord / XIF). This is NOT a real user
-// registration — it is a phantom entry that exists solely so that plugin
-// DB.Upsert calls (which guard with FindProfile) are not rejected.
-// The entry carries a `phantom: true` marker for diagnostics.
+// Ensure a lightweight 'refid_alias' entry exists in core.db for the
+// derived numeric refid used by EA3_UNITY games (XIF = Polaris Chord,
+// VFG = MFG). This is NOT a profile and will NOT appear in the Asphyxia
+// admin user list (which only queries __s:'profile'). Its sole purpose
+// is to satisfy the FindProfile guard in APIUpsert so plugin saves work.
 export async function EnsurePhantomProfile(refid: string, gameCode: string) {
   try {
     const existing = await FindProfile(refid);
     if (existing) return existing;
     return await CoreDB.insertAsync({
-      __s: 'profile',
+      __s: 'refid_alias',
       __refid: refid,
-      pin: 'unset',
-      name: 'GUEST',
-      models: [gameCode],
-      phantom: true,
+      gameCode,
+      alias: true,
     });
   } catch (err) {
     Logger.error(err);
     return false;
   }
 }
+
 
 export async function CreateProfile(pin: string, gameCode: string, refid?: string) {
   if (!CONFIG.allow_register) return false;
